@@ -23,7 +23,8 @@ import {
     IconUsersPlus,
     IconRefresh,
     IconReceipt,
-    IconTicket, // <--- Pastikan IconTicket diimport
+    IconTicket,
+    IconPackageExport, // <--- Import Ikon Baru untuk Laporan Produk
 } from "@tabler/icons-react";
 import hasAnyPermission from "./Permission";
 import React from "react";
@@ -70,16 +71,13 @@ export default function Menu() {
                     icon: <IconUsersPlus size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["customers-access"]),
                 },
-                // --- MENU DISKON (SAYA TAMBAHKAN DI SINI) ---
                 {
                     title: "Manajemen Diskon",
                     href: route("discounts.index"),
                     active: url.startsWith("/dashboard/discounts"),
                     icon: <IconTicket size={20} strokeWidth={1.5} />,
-                    // Saya pakai "dashboard-access" agar pasti muncul jika Anda bisa login dashboard
                     permissions: hasAnyPermission(["dashboard-access"]), 
                 },
-                // --------------------------------------------
             ],
         },
         {
@@ -113,6 +111,15 @@ export default function Menu() {
                     ),
                     permissions: hasAnyPermission(["reports-access"]),
                 },
+                // --- [BARU] MENU LAPORAN PRODUK ---
+                {
+                    title: "Laporan Produk",
+                    href: route("reports.products.index"),
+                    active: url.startsWith("/dashboard/reports/products"),
+                    icon: <IconPackageExport size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["reports-access"]),
+                },
+                // ---------------------------------
                 {
                     title: "Laporan Keuntungan",
                     href: route("reports.profits.index"),

@@ -1,16 +1,17 @@
 import React from "react";
 import { Head, useForm, Link } from "@inertiajs/react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
-import { IconDeviceFloppy, IconArrowLeft, IconTicket } from "@tabler/icons-react";
+import { IconDeviceFloppy, IconArrowLeft, IconTicket, IconPackage } from "@tabler/icons-react";
 import Swal from "sweetalert2";
 
-export default function Create() {
+export default function Create({ products }) { // Menerima props products dari Controller
     const { data, setData, post, processing, errors } = useForm({
         name: "",
-        type: "percentage", // default
+        type: "percentage", 
         value: "",
+        product_id: "", // Field baru untuk target produk
         min_transaction: 0,
-        start_date: new Date().toISOString().split("T")[0], // Hari ini
+        start_date: new Date().toISOString().split("T")[0],
         end_date: "",
         description: ""
     });
@@ -53,10 +54,33 @@ export default function Create() {
                                 type="text" 
                                 value={data.name} 
                                 onChange={e => setData('name', e.target.value)} 
-                                placeholder="Contoh: Diskon Lebaran / Paket Bundling Hemat" 
+                                placeholder="Contoh: Diskon Lebaran / Flash Sale" 
                                 className="w-full px-4 py-3 rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-primary-500 focus:border-primary-500 transition-all" 
                             />
                             {errors.name && <div className="text-red-500 text-xs mt-1 font-medium">{errors.name}</div>}
+                        </div>
+
+                        {/* --- FITUR BARU: PILIH TARGET PRODUK --- */}
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                                <IconPackage size={18} className="text-slate-400"/> Target Diskon
+                            </label>
+                            <select 
+                                value={data.product_id} 
+                                onChange={e => setData('product_id', e.target.value)} 
+                                className="w-full px-4 py-3 rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-primary-500 focus:border-primary-500 cursor-pointer"
+                            >
+                                <option value="">Semua Produk (Global / Potongan Invoice)</option>
+                                {products && products.map((product) => (
+                                    <option key={product.id} value={product.id}>
+                                        Produk: {product.title}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-[11px] text-slate-500 mt-2 italic">
+                                *Pilih produk spesifik jika diskon hanya berlaku untuk item tersebut. Biarkan "Semua Produk" jika diskon memotong total akhir belanja.
+                            </p>
+                            {errors.product_id && <div className="text-red-500 text-xs mt-1 font-medium">{errors.product_id}</div>}
                         </div>
 
                         {/* Tipe Diskon & Nilai */}
@@ -81,7 +105,7 @@ export default function Create() {
                                         type="number" 
                                         value={data.value} 
                                         onChange={e => setData('value', e.target.value)} 
-                                        placeholder={data.type === 'percentage' ? 'Contoh: 10' : 'Contoh: 50000'} 
+                                        placeholder={data.type === 'percentage' ? 'Contoh: 10' : 'Contoh: 5000'} 
                                         className="w-full px-4 py-3 rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-primary-500 focus:border-primary-500" 
                                     />
                                 </div>
@@ -98,7 +122,7 @@ export default function Create() {
                                 onChange={e => setData('min_transaction', e.target.value)} 
                                 className="w-full px-4 py-3 rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-primary-500" 
                             />
-                            <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+                            <p className="text-xs text-slate-500 mt-2">
                                 ℹ️ Isi <b>0</b> jika promo ini berlaku tanpa minimal pembelian.
                             </p>
                         </div>

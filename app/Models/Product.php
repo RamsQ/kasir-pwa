@@ -28,13 +28,25 @@ class Product extends Model
         'expired_date' => 'date',
     ];
 
+    /**
+     * Relasi ke Category
+     */
     public function category()
     {
         return $this->belongsTo(Category::class);
     }
 
     /**
-     * image
+     * Relasi ke TransactionDetail
+     * Digunakan untuk menghitung akumulasi penjualan (total_sold) dan omzet (total_revenue)
+     */
+    public function details()
+    {
+        return $this->hasMany(TransactionDetail::class, 'product_id');
+    }
+
+    /**
+     * Accessor untuk URL Image
      *
      * @return Attribute
      */
@@ -46,22 +58,26 @@ class Product extends Model
                 if ($value) {
                     return asset('/storage/products/' . $value);
                 }
-                // Jika null, return null (atau bisa ganti URL placeholder)
+                // Jika null, return null
                 return null;
             }
         );
     }
 
-        // Relasi: Produk ini sebagai Paket, punya banyak item
+    /**
+     * Relasi: Produk ini sebagai Paket (Bundle), punya banyak item didalamnya
+     */
     public function bundle_items()
     {
         return $this->belongsToMany(Product::class, 'product_bundles', 'product_id', 'item_id')
                 ->withPivot('qty');
     }
 
-    // Relasi kebalikannya (Opsional): Produk ini menjadi bagian dari paket apa saja
+    /**
+     * Relasi kebalikannya: Produk ini menjadi bagian dari paket (bundle) apa saja
+     */
     public function bundles()
     {
-    return $this->belongsToMany(Product::class, 'product_bundles', 'item_id', 'product_id');
+        return $this->belongsToMany(Product::class, 'product_bundles', 'item_id', 'product_id');
     }
 }

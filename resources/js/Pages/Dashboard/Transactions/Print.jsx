@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Head, Link, usePage } from "@inertiajs/react";
+import { Head, Link } from "@inertiajs/react";
 import { 
     IconArrowLeft, IconPrinter, IconCash, IconPackage, 
     IconBuildingStore, IconReceipt, IconHash, IconCalendar, IconUser,
@@ -56,12 +56,23 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
         // Link Validasi untuk Pelanggan
         const shareLink = `${window.location.origin}/share/invoice/${transaction.invoice}`;
 
+        // Susun rincian item dengan info diskon produk
+        const itemDetails = details.map(item => {
+            const unitPrice = item.price / item.qty;
+            const originalPrice = item.product?.sell_price || unitPrice;
+            const promoTag = originalPrice > unitPrice ? ' (PROMO)' : '';
+            return `- ${item.product?.title}${promoTag} [${item.qty}x] = ${formatPrice(item.price)}`;
+        }).join('\n');
+
         const message = 
             `*STRUK DIGITAL ${storeName.toUpperCase()}*\n` +
             `----------------------------------\n` +
             `Halo *${transaction.customer?.name || "Pelanggan"}*,\n` +
             `Terima kasih telah berbelanja.\n\n` +
             `No. Invoice: #${transaction.invoice}\n` +
+            `*Rincian Belanja:*\n` +
+            `${itemDetails}\n` +
+            `----------------------------------\n` +
             `Total: *${formatPrice(transaction.grand_total)}*\n` +
             `Status: *LUNAS*\n\n` +
             `Klik link di bawah ini untuk melihat struk lengkap Anda:\n` +
@@ -77,7 +88,7 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
 
             <div className={`min-h-screen ${isPublic ? 'bg-white' : 'bg-slate-950'} text-slate-300 p-2 md:p-8 print:bg-white print:p-0`}>
                 
-                {/* --- NAVIGATION: Sembunyi jika isPublic atau saat print --- */}
+                {/* --- NAVIGATION --- */}
                 {!isPublic && (
                     <div className="max-w-4xl mx-auto mb-6 flex flex-wrap justify-between items-center gap-4 print:hidden">
                         <Link href={route("transactions.index")} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors bg-slate-900 px-4 py-2 rounded-xl border border-slate-800 shadow-lg">
@@ -85,7 +96,10 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
                         </Link>
                         
                         <div className="flex bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
-                            {[{ id: "invoice", label: "A4", icon: IconFileInvoice }, { id: "thermal80", label: "80mm", icon: IconReceipt }].map((mode) => (
+                            {[
+                                { id: "invoice", label: "A4", icon: IconFileInvoice }, 
+                                { id: "thermal80", label: "80mm", icon: IconReceipt }
+                            ].map((mode) => (
                                 <button key={mode.id} onClick={() => setPrintMode(mode.id)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${printMode === mode.id ? "bg-emerald-600 text-white shadow-md" : "text-slate-500 hover:text-slate-200"}`}>
                                     <mode.icon size={16} /> {mode.label}
                                 </button>
@@ -136,31 +150,54 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
                                 <div className="flex-1">
                                     <table className="w-full">
                                         <thead>
-                                            <tr className="border-b-2 border-slate-900 text-left">
-                                                <th className="py-4 text-[10px] font-black uppercase tracking-widest text-slate-900">Deskripsi Produk</th>
-                                                <th className="py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-900">Qty</th>
-                                                <th className="py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-900">Total</th>
+                                            <tr className="border-b-2 border-slate-900 text-left text-slate-900">
+                                                <th className="py-4 text-[10px] font-black uppercase tracking-widest">Deskripsi Produk</th>
+                                                <th className="py-4 text-right text-[10px] font-black uppercase tracking-widest">Harga</th>
+                                                <th className="py-4 text-center text-[10px] font-black uppercase tracking-widest">Qty</th>
+                                                <th className="py-4 text-right text-[10px] font-black uppercase tracking-widest">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 text-slate-700">
-                                            {details.map((item, i) => (
-                                                <React.Fragment key={i}>
-                                                    <tr>
-                                                        <td className="py-5"><p className="font-bold text-slate-900 uppercase">{item.product?.title}</p></td>
-                                                        <td className="py-5 text-center text-sm font-bold text-slate-900">{item.qty}</td>
-                                                        <td className="py-5 text-right text-sm font-black text-slate-900">{formatPrice(item.price)}</td>
-                                                    </tr>
-                                                    {item.product?.type === 'bundle' && item.product?.bundle_items?.length > 0 && (
+                                            {details.map((item, i) => {
+                                                // --- LOGIKA DISKON PER PRODUK (A4) ---
+                                                const unitPrice = item.price / item.qty;
+                                                const originalPrice = item.product?.sell_price || unitPrice;
+                                                const isDiscounted = originalPrice > unitPrice;
+
+                                                return (
+                                                    <React.Fragment key={i}>
                                                         <tr>
-                                                            <td colSpan="3" className="pb-5 pt-0">
-                                                                <div className="bg-slate-50 rounded-2xl p-4 ml-6 border-l-4 border-emerald-500 italic text-[11px] text-slate-500">
-                                                                    {item.product.bundle_items.map((bi, idx) => (<div key={idx}>- {bi.title} (x{bi.pivot?.qty * item.qty})</div>))}
+                                                            <td className="py-5">
+                                                                <p className="font-bold text-slate-900 uppercase leading-tight mb-1">{item.product?.title}</p>
+                                                                {isDiscounted && (
+                                                                    <span className="text-[9px] font-black text-rose-500 uppercase italic">
+                                                                        Hemat {formatPrice(originalPrice - unitPrice)} / item
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td className="py-5 text-right text-sm">
+                                                                <div className="flex flex-col items-end">
+                                                                    <span className="font-medium text-slate-500">{formatPrice(unitPrice)}</span>
+                                                                    {isDiscounted && (
+                                                                        <span className="text-[10px] text-slate-400 line-through">{formatPrice(originalPrice)}</span>
+                                                                    )}
                                                                 </div>
                                                             </td>
+                                                            <td className="py-5 text-center text-sm font-bold text-slate-900">{item.qty}</td>
+                                                            <td className="py-5 text-right text-sm font-black text-slate-900">{formatPrice(item.price)}</td>
                                                         </tr>
-                                                    )}
-                                                </React.Fragment>
-                                            ))}
+                                                        {item.product?.type === 'bundle' && item.product?.bundle_items?.length > 0 && (
+                                                            <tr>
+                                                                <td colSpan="4" className="pb-5 pt-0">
+                                                                    <div className="bg-slate-50 rounded-2xl p-4 ml-6 border-l-4 border-emerald-500 italic text-[11px] text-slate-500">
+                                                                        {item.product.bundle_items.map((bi, idx) => (<div key={idx}>- {bi.title} (x{bi.pivot?.qty * item.qty})</div>))}
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </React.Fragment>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
@@ -168,13 +205,29 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
                                 {/* Footer */}
                                 <div className="mt-12 flex justify-end">
                                     <div className="w-full md:w-80 bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                                        <div className="flex justify-between items-center pt-4"><span className="text-[10px] font-black uppercase text-slate-900 tracking-widest">Total Bayar</span><span className="text-2xl font-black text-emerald-600">{formatPrice(transaction.grand_total)}</span></div>
+                                        {Number(transaction.discount) > 0 && (
+                                            <div className="flex justify-between items-center mb-2 text-slate-500">
+                                                <span className="text-[10px] font-black uppercase">Diskon Global</span>
+                                                <span className="text-sm font-bold text-rose-500">-{formatPrice(transaction.discount)}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between items-center pt-4 border-t border-slate-200">
+                                            <span className="text-[10px] font-black uppercase text-slate-900 tracking-widest">Total Bayar</span>
+                                            <span className="text-2xl font-black text-emerald-600">{formatPrice(transaction.grand_total)}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         ) : (
                             <div className="bg-white p-4 flex justify-center">
-                                <ThermalReceipt transaction={transaction} storeName={storeName} storeAddress={storeAddress} storePhone={storePhone} footerMessage={storeFooter} storeLogo={storeLogo} />
+                                <ThermalReceipt 
+                                    transaction={transaction} 
+                                    storeName={storeName} 
+                                    storeAddress={storeAddress} 
+                                    storePhone={storePhone} 
+                                    footerMessage={storeFooter} 
+                                    storeLogo={storeLogo} 
+                                />
                             </div>
                         )}
                     </div>

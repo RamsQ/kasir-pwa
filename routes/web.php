@@ -5,6 +5,7 @@ use App\Http\Controllers\Apps\CustomerController;
 use App\Http\Controllers\Apps\PaymentSettingController;
 use App\Http\Controllers\Apps\ProductController;
 use App\Http\Controllers\Apps\TransactionController;
+use App\Http\Controllers\Apps\ProductReportController; // Perbaikan: Pastikan namespace ke folder Apps
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProfileController;
@@ -31,7 +32,6 @@ Route::get('/', function () {
 
 /**
  * Tautan Struk Digital untuk Pelanggan (WA)
- * Diletakkan di luar grup 'auth' agar pelanggan bisa melihat invoice mereka.
  */
 Route::get('/share/invoice/{invoice}', [TransactionController::class, 'shareInvoice'])->name('transactions.share');
 
@@ -107,6 +107,10 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::get('/reports/sales', [SalesReportController::class, 'index'])->name('reports.sales.index');
         Route::get('/reports/profits', [ProfitReportController::class, 'index'])->middleware('permission:profits-access')->name('reports.profits.index');
         Route::get('/reports/refund', [\App\Http\Controllers\Reports\RefundReportController::class, 'index'])->name('reports.refund');
+        
+        // --- [SINKRONISASI] Logika Laporan Produk ---
+        Route::get('/reports/products', [ProductReportController::class, 'index'])->name('reports.products.index');
+        Route::get('/reports/products/export', [ProductReportController::class, 'export'])->name('reports.products.export');
     });
 
     // Bulk Actions

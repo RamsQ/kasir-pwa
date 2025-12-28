@@ -63,7 +63,8 @@ class TransactionController extends Controller
             ->orderBy('name')
             ->get();
 
-        $activeDiscounts = Discount::active()->get();
+        // [UPDATE] Ambil diskon dengan relasi product untuk identifikasi diskon per item
+        $activeDiscounts = Discount::active()->with('product:id,title')->get();
         
         $paymentSetting = PaymentSetting::first();
         $carts_total = $carts->sum('price');
@@ -172,19 +173,37 @@ class TransactionController extends Controller
             ]);
 
             $carts = Cart::with('product')->where('cashier_id', auth()->user()->id)->active()->get();
+            $discounts = Discount::active()->get();
 
             foreach ($carts as $cart) {
+                // [BARU] Hitung Diskon per Produk untuk akurasi Profit
+                $itemUnitPrice = $cart->product->sell_price;
+                $prodDiscount = $discounts->where('product_id', $cart->product_id)->first();
+
+                if ($prodDiscount) {
+                    if ($prodDiscount->type === 'percentage') {
+                        $itemUnitPrice -= ($itemUnitPrice * ($prodDiscount->value / 100));
+                    } else {
+                        $itemUnitPrice -= $prodDiscount->value;
+                    }
+                }
+                
+                $finalPrice = max(0, $itemUnitPrice) * $cart->qty;
+
+                // Simpan Detail Transaksi dengan harga yang sudah dipotong diskon produk
                 $transaction->details()->create([
                     'product_id' => $cart->product_id,
                     'qty'        => $cart->qty,
-                    'price'      => $cart->price,
+                    'price'      => $finalPrice, 
                 ]);
 
+                // Simpan Profit: (Harga Jual Setelah Diskon - Harga Beli) * Qty
                 $total_buy_price = $cart->product->buy_price * $cart->qty;
                 $transaction->profits()->create([
-                    'total' => $cart->price - $total_buy_price,
+                    'total' => $finalPrice - $total_buy_price,
                 ]);
 
+                // Update Stok
                 $product = Product::with('bundle_items')->find($cart->product_id);
                 if ($product && $product->type === 'bundle') {
                     foreach ($product->bundle_items as $item) {
@@ -219,7 +238,7 @@ class TransactionController extends Controller
 
     public function print($invoice)
     {
-        // PENTING: Menambahkan relasi customer agar nomor WA muncul di React
+        // [UPDATE] with 'details.product' agar di struk bisa bandingkan harga asli vs harga diskon
         $transaction = Transaction::with([
             'details.product.bundle_items', 
             'cashier', 
@@ -237,6 +256,7 @@ class TransactionController extends Controller
 
     public function shareInvoice($invoice)
     {
+        // [UPDATE] with 'details.product'
         $transaction = Transaction::with(['details.product.bundle_items', 'cashier', 'customer'])
             ->where('invoice', $invoice)
             ->first();
