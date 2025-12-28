@@ -25,6 +25,9 @@ export default function ThermalReceipt({
     const discount = Number(transaction.discount || 0);
     const subtotal = Number(transaction.grand_total) + discount;
 
+    // Logika agar gambar muncul baik saat lunas (qris) maupun saat penagihan (tagihan)
+    const showQR = (transaction.payment_method === 'qris' || transaction.payment_method === 'tagihan') && qrisImage;
+
     return (
         <div className="bg-white text-black font-mono text-xs leading-tight w-[80mm] mx-auto p-2 pb-6 receipt-content">
             {/* HEADER */}
@@ -76,6 +79,18 @@ export default function ThermalReceipt({
                                 </span>
                                 <span>{formatPrice(item.price)}</span>
                             </div>
+                            
+                            {/* Fitur Bundling Item */}
+                            {item.product?.type === 'bundle' && item.product?.bundle_items?.length > 0 && (
+                                <div className="mt-1 ml-2 pl-2 border-l border-black">
+                                    {item.product.bundle_items.map((bundleItem, idx) => (
+                                        <div key={idx} className="text-[10px] text-slate-700 flex justify-between italic">
+                                            <span>- {bundleItem.title}</span>
+                                            <span>x{bundleItem.pivot?.qty * item.qty}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     );
                 })}
@@ -88,21 +103,18 @@ export default function ThermalReceipt({
                     <span>{formatPrice(transaction.grand_total)}</span>
                 </div>
                 
-                {transaction.payment_method === 'qris' ? (
-                    <div className="flex justify-between text-[10px] font-bold mt-1 uppercase">
-                        <span>Metode</span>
-                        <span>QRIS (LUNAS)</span>
-                    </div>
-                ) : (
-                    <div className="flex justify-between text-[10px]">
-                        <span>Metode</span>
-                        <span className="uppercase">{transaction.payment_method}</span>
-                    </div>
-                )}
+                <div className="flex justify-between text-[10px] font-bold mt-1 uppercase">
+                    <span>Metode</span>
+                    <span>
+                        {transaction.payment_method === 'qris' ? 'QRIS (LUNAS)' : 
+                         transaction.payment_method === 'tagihan' ? 'TAGIHAN QRIS' : 
+                         transaction.payment_method}
+                    </span>
+                </div>
             </div>
 
-            {/* QRIS DISPLAY (RATA TENGAH) */}
-            {transaction.payment_method === 'qris' && qrisImage && (
+            {/* QRIS DISPLAY (Muncul saat metode qris ATAU tagihan) */}
+            {showQR && (
                 <div className="text-center my-4 border-t border-black border-dashed pt-4 flex flex-col items-center justify-center">
                     <p className="text-[10px] font-bold mb-2 uppercase tracking-widest">Scan QRIS Untuk Bayar</p>
                     <div className="bg-white p-2 border border-black inline-block shadow-sm mx-auto">
@@ -137,6 +149,8 @@ export function ThermalReceipt58mm({
     qrisImage,
 }) {
     if (!transaction) return null;
+
+    const showQR = (transaction.payment_method === 'qris' || transaction.payment_method === 'tagihan') && qrisImage;
 
     return (
         <div className="bg-white text-black font-mono text-[10px] leading-tight w-[58mm] mx-auto p-1 pb-6 receipt-content">
@@ -179,14 +193,18 @@ export function ThermalReceipt58mm({
                     <span>TOTAL</span>
                     <span>{formatPrice(transaction.grand_total)}</span>
                 </div>
-                <div className="flex justify-between uppercase">
+                <div className="flex justify-between uppercase font-bold text-[9px]">
                     <span>Metode</span>
-                    <span>{transaction.payment_method === 'qris' ? 'QRIS' : transaction.payment_method}</span>
+                    <span>
+                        {transaction.payment_method === 'qris' ? 'QRIS' : 
+                         transaction.payment_method === 'tagihan' ? 'TAGIHAN' : 
+                         transaction.payment_method}
+                    </span>
                 </div>
             </div>
 
             {/* QRIS DISPLAY (58mm RATA TENGAH) */}
-            {transaction.payment_method === 'qris' && qrisImage && (
+            {showQR && (
                 <div className="text-center my-2 border-t border-black border-dashed pt-2 flex flex-col items-center justify-center">
                     <p className="text-[8px] font-bold mb-1 uppercase tracking-tighter">Scan QRIS</p>
                     <div className="bg-white p-1 border border-black inline-block mx-auto">

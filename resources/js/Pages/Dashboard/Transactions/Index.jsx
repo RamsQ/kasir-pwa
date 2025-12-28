@@ -23,6 +23,7 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
     const [discountAmount, setDiscountAmount] = useState(0);
     const [showQrisModal, setShowQrisModal] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(false);
+    const [paperSize, setPaperSize] = useState("80");
 
     // --- LOGIKA TEMA ---
     useEffect(() => {
@@ -51,20 +52,16 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
         setFilteredProducts(filtered);
     }, [search, products]);
 
-    // --- [BARU] LOGIKA DISKON PER PRODUK ---
+    // --- LOGIKA DISKON PER PRODUK ---
     const subtotalWithProductDiscounts = useMemo(() => {
-        return carts.reduce((acc, item) => {
+        return (carts || []).reduce((acc, item) => {
             let itemPrice = parseFloat(item.product?.sell_price || 0);
-            const productDiscount = discounts.find(d => d.product_id === item.product_id);
-            
+            const productDiscount = (discounts || []).find(d => d.product_id === item.product_id);
             if (productDiscount) {
-                if (productDiscount.type === 'percentage') {
-                    itemPrice -= (itemPrice * (parseFloat(productDiscount.value) / 100));
-                } else {
-                    itemPrice -= parseFloat(productDiscount.value);
-                }
+                itemPrice = productDiscount.type === 'percentage' 
+                    ? itemPrice - (itemPrice * (parseFloat(productDiscount.value) / 100))
+                    : itemPrice - parseFloat(productDiscount.value);
             }
-            
             return acc + (Math.max(0, itemPrice) * item.qty);
         }, 0);
     }, [carts, discounts]);
@@ -140,7 +137,7 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
                         </Link>
                         <div className="hidden sm:block leading-tight">
                             <h1 className="text-lg font-bold text-slate-800 dark:text-white uppercase tracking-tight">Kasir Toko</h1>
-                            <p className="text-[10px] text-slate-500 font-medium tracking-widest">POINT OF SALES</p>
+                            <p className="text-[10px] text-slate-500 font-medium tracking-widest text-primary-500">POS SYSTEM V2</p>
                         </div>
                     </div>
 
@@ -148,19 +145,24 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
                         <div className="hidden lg:block px-4 py-1.5 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-full text-xs font-bold font-mono border border-primary-100 dark:border-primary-800">
                             {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                         </div>
+                        
                         <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-yellow-400 hover:scale-105 transition-transform">
                             {isDarkMode ? <IconSun size={20} /> : <IconMoon size={20} />}
                         </button>
+
                         <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+
+                        {/* --- USER INFO --- */}
                         <div className="flex items-center gap-3">
                             <div className="hidden md:block text-right leading-tight">
-                                <p className="text-sm font-bold truncate max-w-[100px]">{auth?.user?.name || 'Kasir'}</p>
-                                <p className="text-[10px] text-slate-500 uppercase tracking-wider">{auth?.user?.roles?.[0]?.name || 'Staff'}</p>
+                                <p className="text-sm font-bold truncate max-w-[100px] dark:text-white">{auth?.user?.name || 'Kasir'}</p>
+                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">{auth?.user?.roles?.[0]?.name || 'Staff'}</p>
                             </div>
                             <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden ring-2 ring-white dark:ring-slate-800 shadow-sm">
                                 <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(auth?.user?.name || 'U')}&background=random`} alt="Avatar" className="w-full h-full object-cover"/>
                             </div>
                         </div>
+
                         <button onClick={() => router.post(route('logout'))} className="p-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 transition-colors">
                             <IconPower size={20} />
                         </button>
@@ -168,32 +170,37 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
                 </header>
 
                 <main className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-hidden">
-                    {/* --- KIRI: PRODUK --- */}
+                    {/* --- KIRI: DAFTAR PRODUK --- */}
                     <div className="lg:col-span-7 xl:col-span-8 flex flex-col p-4 gap-4 overflow-y-auto max-h-[calc(100vh-64px)] scrollbar-hide">
-                        <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm sticky top-0 z-10 transition-colors">
+                        <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm sticky top-0 z-10">
                             <div className="relative">
                                 <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari Produk..." className="w-full pl-10 pr-4 py-3 text-sm rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-primary-500 transition-all shadow-inner" />
+                                <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari Nama / Barcode..." className="w-full pl-10 pr-4 py-3 text-sm rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-primary-500 shadow-inner" />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 pb-4">
-                            {filteredProducts.length > 0 ? filteredProducts.map((p) => {
-                                const productDiscount = discounts.find(d => d.product_id === p.id);
+                            {filteredProducts.map((p) => {
+                                const productDiscount = (discounts || []).find(d => d.product_id === p.id);
                                 return (
                                     <button key={p.id} onClick={() => addToCart(p)} className="text-left group active:scale-95 transition-transform relative">
-                                        <div className="bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-primary-500 hover:shadow-lg transition-all h-full flex flex-col shadow-sm">
-                                            <div className="aspect-square bg-slate-100 dark:bg-slate-800 rounded-lg mb-2 overflow-hidden relative">
-                                                <img src={p.image ? `/storage/products/${p.image}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(p.title)}`} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                                        <div className="bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 h-full flex flex-col shadow-sm">
+                                            <div className="aspect-square bg-slate-100 dark:bg-slate-800 rounded-lg mb-2 overflow-hidden relative text-center">
+                                                <img 
+                                                    src={p.image && p.image.startsWith('http') ? p.image : `/storage/products/${p.image}`} 
+                                                    className="w-full h-full object-cover transition-transform group-hover:scale-110" 
+                                                    onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.title)}&background=random`; }}
+                                                />
                                                 
+                                                {/* LABEL PROMO */}
                                                 {productDiscount && (
-                                                    <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black px-2 py-1 rounded-bl-xl shadow-lg flex items-center gap-1 animate-pulse">
+                                                    <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black px-2 py-1 rounded-bl-xl shadow-lg flex items-center gap-1 animate-pulse z-10">
                                                         <IconTag size={10}/> {productDiscount.type === 'percentage' ? `${productDiscount.value}%` : 'PROMO'}
                                                     </div>
                                                 )}
 
                                                 {p.type === 'bundle' && (
-                                                    <div className="absolute bottom-2 left-2 bg-purple-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-lg shadow-lg flex items-center gap-1">
+                                                    <div className="absolute bottom-2 left-2 bg-purple-600 text-white text-[8px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-lg">
                                                         <IconPackage size={10}/> PAKET
                                                     </div>
                                                 )}
@@ -201,7 +208,15 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
                                                     {p.type === 'single' ? `Stok: ${p.stock}` : 'Ready'}
                                                 </div>
                                             </div>
-                                            <h3 className="font-semibold text-slate-800 dark:text-white line-clamp-2 text-[11px] mb-1 leading-tight uppercase">{p.title}</h3>
+                                            <h3 className="font-bold text-[11px] mb-1 leading-tight uppercase dark:text-white line-clamp-2">{p.title}</h3>
+                                            
+                                            {/* BUNDLING INFO */}
+                                            {p.type === 'bundle' && p.bundle_items?.length > 0 && (
+                                                <div className="mb-2 text-[8px] text-slate-400 italic line-clamp-1">
+                                                    Isi: {p.bundle_items.map(bi => bi.title).join(', ')}
+                                                </div>
+                                            )}
+
                                             <div className="mt-auto">
                                                 {productDiscount ? (
                                                     <div className="flex flex-col">
@@ -217,18 +232,16 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
                                         </div>
                                     </button>
                                 );
-                            }) : (
-                                <div className="col-span-full py-20 text-center text-slate-400 italic">Produk tidak ditemukan</div>
-                            )}
+                            })}
                         </div>
                     </div>
 
                     {/* --- KANAN: KERANJANG --- */}
-                    <div className="lg:col-span-5 xl:col-span-4 bg-white dark:bg-slate-900 border-t lg:border-l border-slate-200 dark:border-slate-800 flex flex-col h-full sticky bottom-0 lg:static z-20 transition-colors shadow-[0_-10px_20px_rgba(0,0,0,0.05)] lg:shadow-none">
+                    <div className="lg:col-span-5 xl:col-span-4 bg-white dark:bg-slate-900 border-t lg:border-l border-slate-200 dark:border-slate-800 flex flex-col h-full sticky bottom-0 lg:static z-20 shadow-2xl lg:shadow-none">
                         <div className="p-4 border-b border-slate-100 dark:border-slate-800">
-                            <div className="flex items-center justify-between mb-3 font-bold text-sm uppercase tracking-wider">
+                             <div className="flex items-center justify-between mb-3 font-bold text-sm uppercase tracking-wider">
                                 <span className="flex items-center gap-2 dark:text-white"><IconShoppingCart size={18} className="text-primary-500" /> Keranjang</span>
-                                <span className="bg-primary-50 dark:bg-primary-900/30 text-primary-600 px-2.5 py-0.5 rounded-full text-[10px] border border-primary-100 dark:border-primary-800">{carts?.length || 0} ITEM</span>
+                                <span className="bg-primary-50 dark:bg-primary-900/30 text-primary-600 px-2.5 py-0.5 rounded-full text-[10px] border border-primary-100 dark:border-primary-800 font-black">{carts?.length || 0} ITEM</span>
                             </div>
                             <select value={selectedCustomer} onChange={(e) => setSelectedCustomer(e.target.value)} className="w-full text-xs rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white focus:ring-primary-500 shadow-sm">
                                 <option value="">-- Pelanggan Umum --</option>
@@ -237,47 +250,37 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
                         </div>
 
                         <div className="flex-1 overflow-y-auto max-h-[300px] lg:max-h-none p-3 space-y-2">
-                            {carts.map((c) => {
-                                const prodDiscount = discounts.find(d => d.product_id === c.product_id);
-                                let displayPrice = c.price;
-                                if(prodDiscount) {
-                                    const unitPrice = c.price / c.qty;
-                                    const disc = prodDiscount.type === 'percentage' ? unitPrice * (prodDiscount.value / 100) : prodDiscount.value;
-                                    displayPrice = (unitPrice - disc) * c.qty;
-                                }
-
-                                return (
-                                    <div key={c.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 group shadow-sm">
-                                        <div className="flex justify-between items-start mb-1">
-                                            <h4 className="text-[11px] font-bold uppercase truncate dark:text-white flex-1 mr-2">{c.product?.title}</h4>
-                                            {prodDiscount && <span className="text-[8px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-black uppercase">Promo</span>}
+                            {(carts || []).map((c) => (
+                                <div key={c.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex flex-col shadow-sm">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <h4 className="text-[11px] font-bold uppercase truncate dark:text-white flex-1 mr-2">{c.product?.title}</h4>
+                                        <button onClick={() => deleteCart(c.id)} className="text-slate-300 hover:text-red-500 transition-colors"><IconX size={16} /></button>
+                                    </div>
+                                    
+                                    {c.product?.type === 'bundle' && (
+                                        <div className="mb-2 pl-2 border-l-2 border-primary-400 text-[9px] text-slate-500 italic bg-white/50 dark:bg-white/5 p-1 rounded">
+                                            {(c.product.bundle_items || []).map((item, idx) => (
+                                                <div key={idx}>• {item.title} (x{item.pivot?.qty * c.qty})</div>
+                                            ))}
                                         </div>
-                                        
-                                        {c.product?.type === 'bundle' && (
-                                            <div className="mb-2 pl-2 border-l-2 border-primary-400 text-[9px] text-slate-500 dark:text-slate-400 italic bg-white/50 dark:bg-white/5 p-1 rounded">
-                                                {c.product.bundle_items?.map((item, idx) => <div key={idx}>• {item.title} (x{item.pivot?.qty * c.qty})</div>)}
-                                            </div>
-                                        )}
-                                        <div className="flex justify-between items-center">
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-xs text-primary-600 dark:text-primary-400">{formatPrice(displayPrice)}</span>
-                                                {prodDiscount && <span className="text-[8px] text-slate-400 line-through">{formatPrice(c.price)}</span>}
-                                            </div>
-                                            <div className="flex items-center gap-2 bg-white dark:bg-slate-900 rounded-lg p-1 border dark:border-slate-700 shadow-inner">
-                                                <button onClick={() => updateQty(c.id, c.qty - 1)} className="w-6 h-6 flex items-center justify-center font-bold text-slate-400 hover:text-primary-500">-</button>
-                                                <span className="text-[10px] font-bold w-4 text-center dark:text-white">{c.qty}</span>
-                                                <button onClick={() => updateQty(c.id, c.qty + 1)} className="w-6 h-6 flex items-center justify-center font-bold text-slate-400 hover:text-primary-500">+</button>
-                                            </div>
-                                            <button onClick={() => deleteCart(c.id)} className="text-slate-300 hover:text-red-500 transition-colors p-1"><IconX size={16} /></button>
+                                    )}
+
+                                    <div className="flex justify-between items-center mt-auto">
+                                        <span className="font-bold text-xs text-primary-600 dark:text-primary-400">{formatPrice(c.price)}</span>
+                                        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 rounded-lg p-1 border dark:border-slate-700 shadow-inner">
+                                            <button onClick={() => updateQty(c.id, c.qty - 1)} className="w-6 h-6 flex items-center justify-center font-bold text-slate-400 hover:text-primary-500">-</button>
+                                            <span className="text-[10px] font-bold w-4 text-center dark:text-white">{c.qty}</span>
+                                            <button onClick={() => updateQty(c.id, c.qty + 1)} className="w-6 h-6 flex items-center justify-center font-bold text-slate-400 hover:text-primary-500">+</button>
                                         </div>
                                     </div>
-                                );
-                            })}
+                                </div>
+                            ))}
                         </div>
 
-                        <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 space-y-3 transition-colors">
+                        {/* --- PANEL PEMBAYARAN --- */}
+                        <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 space-y-3">
+                            {/* DISKON GLOBAL */}
                             <div>
-                                <label className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1 tracking-widest"><IconTicket size={12} className="text-primary-500"/> Diskon Global (Invoice)</label>
                                 <select value={selectedDiscountId} onChange={(e) => setSelectedDiscountId(e.target.value)} className={`w-full text-xs rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-primary-500 ${selectedDiscountId ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 text-primary-700 font-bold' : ''}`}>
                                     <option value="">-- Pilih Diskon Global --</option>
                                     {Array.isArray(discounts) && discounts.filter(d => !d.product_id).map(d => (
@@ -288,40 +291,52 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
                                 </select>
                             </div>
 
-                            <div className="space-y-1.5 text-xs">
+                            <div className="space-y-1 text-xs">
                                 <div className="flex justify-between text-slate-500 dark:text-slate-400 font-medium"><span>Subtotal</span><span>{formatPrice(subtotalWithProductDiscounts)}</span></div>
-                                {discountAmount > 0 && <div className="flex justify-between text-red-500 font-bold bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-lg"><span className="flex items-center gap-1"><IconGift size={12}/> Diskon Global</span><span>- {formatPrice(discountAmount)}</span></div>}
-                                <div className="flex justify-between text-lg font-black text-primary-600 dark:text-primary-400 border-t border-dashed border-slate-300 dark:border-slate-700 pt-2 mt-2 uppercase tracking-tighter"><span>Total Bayar</span><span>{formatPrice(grandTotal)}</span></div>
+                                {discountAmount > 0 && <div className="flex justify-between text-red-500 font-bold bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-lg"><span><IconGift size={12}/> Diskon</span><span>- {formatPrice(discountAmount)}</span></div>}
+                                <div className="flex justify-between text-lg font-black text-primary-600 dark:text-primary-400 uppercase tracking-tighter pt-1 mt-1 border-t border-dashed border-slate-300 dark:border-slate-700">
+                                    <span>TOTAL</span><span>{formatPrice(grandTotal)}</span>
+                                </div>
                             </div>
 
+                            {/* SHORTCUT TUNAI */}
                             <div className="grid grid-cols-4 gap-1.5">
-                                {[grandTotal, 10000, 50000, 100000].map((val, i) => (
-                                    <button key={i} onClick={() => setCash(val)} className="py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[9px] font-bold uppercase dark:text-white hover:bg-primary-50 transition-all shadow-sm">{i === 0 ? 'Pas' : (val/1000) + 'K'}</button>
+                                {[grandTotal, 10000, 50000, 100000].map((v, i) => (
+                                    <button key={i} onClick={() => setCash(v)} className="py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[9px] font-bold uppercase dark:text-white shadow-sm hover:bg-primary-50 transition-colors">
+                                        {i === 0 ? 'Pas' : v/1000 + 'K'}
+                                    </button>
                                 ))}
                             </div>
 
+                            {/* --- INPUT TUNAI MANUAL & KEMBALIAN --- */}
                             <div className="grid grid-cols-2 gap-2">
-                                <input type="number" value={cash || ''} onChange={(e) => setCash(Number(e.target.value))} placeholder="Tunai..." className="w-full px-3 py-2 text-xs font-bold rounded-xl dark:bg-slate-800 border-slate-200 dark:border-slate-700 dark:text-white focus:ring-primary-500 shadow-sm" />
-                                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-1.5 flex flex-col items-center justify-center leading-none shadow-inner">
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">Rp</span>
+                                    <input 
+                                        type="number" 
+                                        value={cash || ''} 
+                                        onChange={(e) => setCash(Number(e.target.value))} 
+                                        placeholder="Input Tunai..." 
+                                        className="w-full pl-8 pr-3 py-3 text-sm font-black rounded-xl dark:bg-slate-800 border-slate-200 dark:border-slate-700 dark:text-white focus:ring-primary-500 shadow-sm" 
+                                    />
+                                </div>
+                                <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-1.5 flex flex-col items-center justify-center leading-none shadow-inner text-center">
                                     <span className="text-[8px] font-bold text-slate-400 uppercase mb-1">Kembali</span>
                                     <span className={`text-[11px] font-extrabold ${change >= 0 ? 'text-green-600' : 'text-red-500'}`}>{formatPrice(change)}</span>
                                 </div>
                             </div>
 
                             <div className="flex flex-col gap-2">
-                                <button onClick={() => window.print()} disabled={carts.length === 0} className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] rounded-xl flex items-center justify-center gap-2 uppercase transition-all shadow-lg shadow-amber-500/20">
-                                    <IconPrinter size={16} /> Cetak Tagihan (QRIS)
+                                <button onClick={() => window.print()} disabled={carts.length === 0} className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-black text-[11px] rounded-xl flex items-center justify-center gap-2 uppercase shadow-lg shadow-amber-500/20">
+                                    <IconPrinter size={18} /> Cetak Tagihan (QRIS)
                                 </button>
-
                                 <div className="grid grid-cols-2 gap-2">
-                                    <button onClick={handlePayCash} disabled={carts.length === 0 || cash < grandTotal} className="py-3 bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 disabled:bg-slate-300 text-white font-bold text-[10px] rounded-xl shadow-lg transition-all flex flex-col items-center justify-center gap-1 uppercase group">
-                                        <IconCash size={20} className="group-hover:scale-110 transition-transform" /> Tunai
+                                    <button onClick={handlePayCash} disabled={carts.length === 0 || cash < grandTotal} className="py-4 bg-slate-800 dark:bg-slate-700 text-white font-black text-[10px] rounded-xl flex flex-col items-center justify-center gap-1 uppercase transition-all shadow-lg shadow-black/20">
+                                        <IconCash size={20} /> Tunai
                                     </button>
-                                    {paymentSetting?.qris_manual_enabled && (
-                                        <button onClick={() => setShowQrisModal(true)} disabled={carts.length === 0} className="py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-slate-300 text-white font-bold text-[10px] rounded-xl shadow-lg transition-all flex flex-col items-center justify-center gap-1 uppercase group">
-                                            <IconQrcode size={20} className="group-hover:scale-110 transition-transform" /> Bayar QRIS
-                                        </button>
-                                    )}
+                                    <button onClick={() => setShowQrisModal(true)} disabled={carts.length === 0} className="py-4 bg-primary-600 text-white font-black text-[10px] rounded-xl flex flex-col items-center justify-center gap-1 uppercase transition-all shadow-lg shadow-primary-500/20">
+                                        <IconQrcode size={20} /> QRIS
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -329,51 +344,38 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
                 </main>
             </div>
 
-            {/* --- SECTION KHUSUS PRINT --- */}
+            {/* PRINT SECTION */}
             <div id="print-section" className="hidden print:block bg-white min-h-screen">
                 <ThermalReceipt 
                     transaction={{
-                        invoice: 'PROFORMA-' + new Date().getTime(),
+                        invoice: 'TAGIHAN-' + new Date().getTime(),
                         created_at: new Date(),
                         grand_total: grandTotal,
                         details: carts,
                         cashier: auth.user,
-                        payment_method: 'qris'
+                        payment_method: 'tagihan' 
                     }}
-                    // Memastikan prop qrisImage diteruskan dan path gambarnya benar
                     qrisImage={paymentSetting?.qris_manual_image ? `/storage/payments/${paymentSetting.qris_manual_image}` : null}
                     isTemporary={true}
-                    storeName={receiptSetting?.store_name || "WARUNG PALUGADA"}
-                    storeAddress={receiptSetting?.store_address || ""}
-                    storePhone={receiptSetting?.store_phone || ""}
+                    storeName={receiptSetting?.store_name}
+                    storeAddress={receiptSetting?.store_address}
                     footerMessage="Silakan scan dan tunjukkan bukti bayar ke kasir"
                 />
             </div>
 
-            {/* --- MODAL QRIS --- */}
+            {/* MODAL QRIS */}
             {showQrisModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center border dark:border-slate-800">
-                        <div className="mb-4">
-                            <h3 className="text-lg font-black uppercase tracking-tight text-slate-800 dark:text-white">Konfirmasi QRIS</h3>
-                            <p className="text-xs text-slate-500 font-medium uppercase tracking-widest opacity-60">Scan & Pastikan Uang Masuk</p>
-                        </div>
-                        {/* Container Gambar: Diberikan flex center agar gambar QRIS berada di tengah */}
+                        <h3 className="text-lg font-black uppercase text-slate-800 dark:text-white mb-4">Konfirmasi QRIS</h3>
                         <div className="bg-white p-4 rounded-2xl border-2 border-slate-100 mb-4 flex items-center justify-center shadow-inner group overflow-hidden">
                             {paymentSetting?.qris_manual_image ? (
-                                <img 
-                                    src={`/storage/payments/${paymentSetting.qris_manual_image}`} 
-                                    alt="QRIS" 
-                                    className="block mx-auto w-full h-auto max-w-[220px] rounded-lg group-hover:scale-105 transition-transform" 
-                                />
+                                <img src={`/storage/payments/${paymentSetting.qris_manual_image}`} alt="QRIS" className="block mx-auto w-full h-auto max-w-[220px] rounded-lg" />
                             ) : (
-                                <div className="py-14 text-slate-400 text-[10px] italic flex flex-col items-center gap-2">
-                                    <IconQrcode size={48} className="opacity-10"/> Gambar QRIS belum diunggah
-                                </div>
+                                <div className="py-14 text-slate-400 italic">QRIS belum diunggah</div>
                             )}
                         </div>
-                        <div className="bg-primary-50 dark:bg-primary-900/30 rounded-2xl p-4 mb-6 border border-primary-100 dark:border-primary-800">
-                            <p className="text-[10px] text-primary-600 dark:text-primary-400 uppercase font-black tracking-widest mb-1">Total Tagihan</p>
+                        <div className="bg-primary-50 dark:bg-primary-900/30 rounded-2xl p-4 mb-6 border border-primary-100 dark:border-primary-800 text-center">
                             <p className="text-2xl font-black text-primary-700 dark:text-white leading-none">{formatPrice(grandTotal)}</p>
                         </div>
                         <div className="flex flex-col gap-2">
@@ -388,34 +390,10 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
 
             <style dangerouslySetInnerHTML={{ __html: `
                 @media print {
-                    html, body, #main-app-content, header, main, .print\\:hidden {
-                        background: white !important;
-                        visibility: hidden !important;
-                        height: 0 !important;
-                        overflow: hidden !important;
-                        margin: 0 !important;
-                    }
-                    /* Container struk dipaksa rata tengah di layar print */
-                    #print-section {
-                        visibility: visible !important;
-                        display: flex !important;
-                        justify-content: center !important;
-                        align-items: flex-start !important;
-                        position: absolute !important;
-                        left: 0 !important;
-                        top: 0 !important;
-                        width: 100% !important;
-                        height: auto !important;
-                        background: white !important;
-                        z-index: 99999 !important;
-                    }
-                    #print-section * {
-                        visibility: visible !important;
-                    }
-                    @page {
-                        size: auto;
-                        margin: 0mm;
-                    }
+                    html, body, #main-app-content, header, main, .print\\:hidden { background: white !important; visibility: hidden !important; height: 0 !important; overflow: hidden !important; }
+                    #print-section { visibility: visible !important; display: flex !important; justify-content: center !important; align-items: flex-start !important; position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; height: auto !important; z-index: 99999 !important; }
+                    #print-section * { visibility: visible !important; }
+                    @page { size: auto; margin: 0mm; }
                 }
             ` }} />
         </>
