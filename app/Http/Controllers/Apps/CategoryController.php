@@ -11,27 +11,21 @@ use Illuminate\Support\Facades\Storage;
 class CategoryController extends Controller
 {
     /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
+     * Tampilkan daftar kategori.
      */
     public function index()
     {
-        //get categories
-        $categories = Category::when(request()->search, function ($categories) {
-            $categories = $categories->where('name', 'like', '%' . request()->search . '%');
-        })->latest()->paginate(2);
+        $categories = Category::when(request()->search, function ($query) {
+            $query->where('name', 'like', '%' . request()->search . '%');
+        })->latest()->paginate(10); // Mengubah paginate menjadi 10 agar lebih standar
 
-        //return inertia
         return Inertia::render('Dashboard/Categories/Index', [
             'categories' => $categories,
         ]);
     }
 
     /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
+     * Form tambah kategori.
      */
     public function create()
     {
@@ -39,42 +33,39 @@ class CategoryController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * Simpan kategori baru.
      */
     public function store(Request $request)
     {
         /**
-         * validate
+         * Validasi: Gambar dan Deskripsi sekarang bersifat opsional (nullable)
          */
         $request->validate([
-            'image' => 'required|image|mimes:jpeg,jpg,png|max:2048',
-            'name' => 'required',
-            'description' => 'required'
+            'image'       => 'nullable|image|mimes:jpeg,jpg,png|max:2048',
+            'name'        => 'required|unique:categories,name',
+            'description' => 'nullable'
         ]);
 
-        //upload image
-        $image = $request->file('image');
-        $image->storeAs('public/category', $image->hashName());
+        $imageName = null;
+        // Cek jika ada file gambar yang diunggah
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $image->storeAs('public/category', $image->hashName());
+            $imageName = $image->hashName();
+        }
 
-        //create category
+        // Create category
         Category::create([
-            'image' => $image->hashName(),
-            'name' => $request->name,
-            'description' => $request->description
+            'image'       => $imageName,
+            'name'        => $request->name,
+            'description' => $request->description ?? '-' // Default strip jika kosong
         ]);
 
-        //redirect
-        return to_route('categories.index');
+        return to_route('categories.index')->with('success', 'Kategori berhasil disimpan!');
     }
 
     /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * Form edit kategori.
      */
     public function edit(Category $category)
     {
@@ -84,68 +75,53 @@ class CategoryController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * Update kategori.
      */
     public function update(Request $request, Category $category)
     {
-        /**
-         * validate
-         */
         $request->validate([
-            'name' => 'required',
-            'description' => 'required'
+            'name'        => 'required|unique:categories,name,' . $category->id,
+            'image'       => 'nullable|image|mimes:jpeg,jpg,png|max:2048',
+            'description' => 'nullable'
         ]);
 
-        //check image update
-        if ($request->file('image')) {
+        $data = [
+            'name'        => $request->name,
+            'description' => $request->description ?? '-',
+        ];
 
-            //remove old image
-            Storage::disk('local')->delete('public/category/' . basename($category->image));
+        // Check jika ada gambar baru
+        if ($request->hasFile('image')) {
+            // Hapus gambar lama jika ada
+            if ($category->image) {
+                Storage::disk('local')->delete('public/category/' . basename($category->image));
+            }
 
-            //upload new image
+            // Upload gambar baru
             $image = $request->file('image');
             $image->storeAs('public/category', $image->hashName());
-
-            //update category with new image
-            $category->update([
-                'image' => $image->hashName(),
-                'name' => $request->name,
-                'description' => $request->description
-            ]);
+            $data['image'] = $image->hashName();
         }
 
-        //update category without image
-        $category->update([
-            'name' => $request->name,
-            'description' => $request->description
-        ]);
+        $category->update($data);
 
-        //redirect
-        return to_route('categories.index');
+        return to_route('categories.index')->with('success', 'Kategori berhasil diperbarui!');
     }
 
     /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * Hapus kategori.
      */
     public function destroy($id)
     {
-        //find by ID
         $category = Category::findOrFail($id);
 
-        //remove image
-        Storage::disk('local')->delete('public/category/' . basename($category->image));
+        // Hapus file gambar dari storage jika ada
+        if ($category->image) {
+            Storage::disk('local')->delete('public/category/' . basename($category->image));
+        }
 
-        //delete
         $category->delete();
 
-        //redirect
-        return to_route('categories.index');
+        return to_route('categories.index')->with('success', 'Kategori berhasil dihapus!');
     }
 }

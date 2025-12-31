@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,7 +15,14 @@ class Cart extends Model
      * @var array
      */
     protected $fillable = [
-        'cashier_id', 'product_id', 'qty', 'price', 'hold_id', 'hold_label', 'held_at',
+        'cashier_id', 
+        'product_id', 
+        'qty', 
+        'price', 
+        'hold_id', 
+        'hold_label', 
+        'held_at',
+        'product_unit_id', // Tambahkan ini agar bisa menyimpan pilihan satuan
     ];
 
     /**
@@ -24,16 +32,26 @@ class Cart extends Model
      */
     protected $casts = [
         'held_at' => 'datetime',
+        'qty'     => 'float', // Cast ke float agar mendukung angka desimal (0.5 dll)
     ];
 
     /**
      * product
      *
-     * @return void
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Relasi ke ProductUnit
+     * * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function unit()
+    {
+        return $this->belongsTo(ProductUnit::class, 'product_unit_id');
     }
 
     /**

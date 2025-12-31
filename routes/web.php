@@ -5,20 +5,23 @@ use App\Http\Controllers\Apps\CustomerController;
 use App\Http\Controllers\Apps\PaymentSettingController;
 use App\Http\Controllers\Apps\ProductController;
 use App\Http\Controllers\Apps\TransactionController;
-use App\Http\Controllers\Apps\ProductReportController; // Perbaikan: Pastikan namespace ke folder Apps
+use App\Http\Controllers\Apps\ProductReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PermissionController;
-use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Apps\ProfileController;
 use App\Http\Controllers\Reports\ProfitReportController;
 use App\Http\Controllers\Reports\SalesReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ShiftController; 
+use App\Http\Controllers\Apps\StockOpnameController;
+use App\Http\Controllers\Apps\ExpiredProductController; // Import Controller Expired
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 // =============================================================
-// RUTEL PUBLIK (Bisa diakses tanpa login)
+// RUTE PUBLIK (Bisa diakses tanpa login)
 // =============================================================
 
 Route::get('/', function () {
@@ -30,9 +33,6 @@ Route::get('/', function () {
     ]);
 });
 
-/**
- * Tautan Struk Digital untuk Pelanggan (WA)
- */
 Route::get('/share/invoice/{invoice}', [TransactionController::class, 'shareInvoice'])->name('transactions.share');
 
 
@@ -42,13 +42,20 @@ Route::get('/share/invoice/{invoice}', [TransactionController::class, 'shareInvo
 
 Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     
-    // [1] KHUSUS ADMIN (Hanya yang punya 'dashboard-access')
-    Route::group(['middleware' => ['permission:dashboard-access']], function () {
-        
-        Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-        Route::get('/permissions', [PermissionController::class, 'index'])->name('permissions.index');
+    // [0] DASHBOARD UTAMA
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-        // Roles & Users
+    // [0.1] SHIFT KASIR
+    Route::group(['middleware' => ['permission:transactions-access']], function () {
+        Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index'); 
+        Route::post('/shifts', [ShiftController::class, 'store'])->name('shifts.store');
+        Route::put('/shifts/{shift}', [ShiftController::class, 'update'])->name('shifts.update');
+        Route::get('/shifts/{shift}/print', [ShiftController::class, 'print'])->name('shifts.print');
+    });
+
+    // [1] KHUSUS ADMIN/OWNER (Manajemen Sistem)
+    Route::group(['middleware' => ['permission:dashboard-access']], function () {
+        Route::get('/permissions', [PermissionController::class, 'index'])->name('permissions.index');
         Route::resource('/roles', RoleController::class)->except(['create', 'edit', 'show']);
         Route::resource('/users', UserController::class)->except('show');
 
@@ -59,16 +66,11 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::post('/settings/receipt', [\App\Http\Controllers\Apps\ReceiptSettingController::class, 'update'])->name('settings.receipt.update');
 
         // Discounts
-        Route::resource('/discounts', \App\Http\Controllers\Apps\DiscountController::class)
-            ->except(['show', 'edit', 'update'])
-            ->middlewareFor('index', 'permission:discounts-access')
-            ->middlewareFor('store', 'permission:discounts-create')
-            ->middlewareFor('destroy', 'permission:discounts-delete');
+        Route::resource('/discounts', \App\Http\Controllers\Apps\DiscountController::class)->except(['show', 'edit', 'update']);
     });
 
     // [2] TRANSAKSI & POS
     Route::group(['middleware' => ['permission:transactions-access']], function () {
-        
         Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
         Route::post('/transactions/searchProduct', [TransactionController::class, 'searchProduct'])->name('transactions.searchProduct');
         Route::post('/transactions/addToCart', [TransactionController::class, 'addToCart'])->name('transactions.addToCart');
@@ -85,18 +87,29 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::get('/transactions/{invoice}/print', [TransactionController::class, 'print'])->name('transactions.print');
         Route::post('/transactions/{transaction}/refund', [TransactionController::class, 'refund'])->name('transactions.refund');
         
-        // RESET DATA (HANYA SUPER ADMIN)
         Route::delete('/transactions/reset', [TransactionController::class, 'destroyAll'])
             ->middleware(['role:super-admin']) 
             ->name('transactions.reset');
     });
 
-    // [3] MASTER DATA
-    Route::resource('categories', CategoryController::class)->middleware('permission:categories-access');
-    
-    Route::get('/products/template', [ProductController::class, 'template'])->name('products.template');
-    Route::post('/products/import', [ProductController::class, 'import'])->name('products.import');
-    Route::resource('products', ProductController::class)->middleware('permission:products-access');
+    // [3] MASTER DATA & INVENTORY
+    Route::group(['middleware' => ['permission:products-access']], function () {
+        Route::resource('categories', CategoryController::class)->middleware('permission:categories-access');
+        
+        Route::get('/products/template', [ProductController::class, 'template'])->name('products.template');
+        Route::post('/products/import', [ProductController::class, 'import'])->name('products.import');
+        Route::resource('products', ProductController::class);
+
+        // --- STOCK OPNAME ---
+        Route::group(['middleware' => ['permission:stock_opnames.index']], function () {
+            Route::get('/stock-opnames', [StockOpnameController::class, 'index'])->name('stock_opnames.index');
+            Route::post('/stock-opnames', [StockOpnameController::class, 'store'])->name('stock_opnames.store');
+            Route::delete('/stock-opnames/{stock_opname}', [StockOpnameController::class, 'destroy'])->name('stock_opnames.destroy');
+            
+            Route::get('/stock-opnames-export', [StockOpnameController::class, 'export'])->name('stock_opnames.export');
+            Route::post('/stock-opnames-import', [StockOpnameController::class, 'import'])->name('stock_opnames.import');
+        });
+    });
     
     Route::resource('customers', CustomerController::class);
     Route::post('/customers/store-ajax', [CustomerController::class, 'storeAjax'])->name('customers.storeAjax');
@@ -107,13 +120,16 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::get('/reports/sales', [SalesReportController::class, 'index'])->name('reports.sales.index');
         Route::get('/reports/profits', [ProfitReportController::class, 'index'])->middleware('permission:profits-access')->name('reports.profits.index');
         Route::get('/reports/refund', [\App\Http\Controllers\Reports\RefundReportController::class, 'index'])->name('reports.refund');
-        
-        // --- [SINKRONISASI] Logika Laporan Produk ---
         Route::get('/reports/products', [ProductReportController::class, 'index'])->name('reports.products.index');
         Route::get('/reports/products/export', [ProductReportController::class, 'export'])->name('reports.products.export');
+        Route::get('/reports/shifts', [ShiftController::class, 'index'])->name('reports.shifts.index');
+
+        // --- UPDATE: LAPORAN PRODUK EXPIRED DENGAN EXPORT ---
+        Route::get('/reports/expired', [ExpiredProductController::class, 'index'])->name('reports.expired.index');
+        Route::get('/reports/expired/pdf', [ExpiredProductController::class, 'exportPdf'])->name('reports.expired.pdf');
+        Route::get('/reports/expired/excel', [ExpiredProductController::class, 'exportExcel'])->name('reports.expired.excel');
     });
 
-    // Bulk Actions
     Route::post('/products/bulk-destroy', [\App\Http\Controllers\Apps\ProductController::class, 'bulkDestroy'])->name('products.bulk_destroy');
 
     // [5] USER PROFILE

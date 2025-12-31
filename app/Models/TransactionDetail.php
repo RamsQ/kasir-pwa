@@ -15,13 +15,18 @@ class TransactionDetail extends Model
      * @var array
      */
     protected $fillable = [
-        'transaction_id', 'product_id', 'qty', 'price'
+        'transaction_id', 
+        'product_id', 
+        'qty', 
+        'price',
+        'unit',            // Kolom teks: Menyimpan "Sachet", "Box", dll.
+        'product_unit_id'  // Foreign Key: ID referensi ke tabel product_units
     ];
 
     /**
-     * transaction
+     * Relasi ke Transaction
      *
-     * @return void
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function transaction()
     {
@@ -29,12 +34,23 @@ class TransactionDetail extends Model
     }
 
     /**
-     * product
+     * Relasi ke Product
      *
-     * @return void
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function product()
     {
         return $this->belongsTo(Product::class)->withTrashed();
+    }
+
+    /**
+     * Relasi ke ProductUnit (Satuan Kustom Konversi)
+     * * PERUBAHAN PENTING: Nama fungsi diubah menjadi 'product_unit' 
+     * agar tidak menimpa (overwrite) data pada kolom 'unit' (string).
+     * * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function product_unit()
+    {
+        return $this->belongsTo(ProductUnit::class, 'product_unit_id');
     }
 }

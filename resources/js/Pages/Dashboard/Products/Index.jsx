@@ -11,6 +11,8 @@ import {
     IconFileTypeXls,
     IconDownload,
     IconUpload,
+    IconBarcode,
+    IconInbox
 } from "@tabler/icons-react";
 
 export default function Index({ products, search }) {
@@ -62,23 +64,23 @@ export default function Index({ products, search }) {
 
     // --- 4. IMPORT EXCEL LOGIC ---
     const handleImportClick = () => {
-        fileInputRef.current.click(); // Trigger input file yang tersembunyi
+        fileInputRef.current.click(); 
     };
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            // Langsung upload saat file dipilih
             const formData = new FormData();
             formData.append("file", file);
             
             router.post(route("products.import"), formData, {
+                forceFormData: true,
                 onSuccess: () => {
-                    fileInputRef.current.value = ""; // Reset input
+                    fileInputRef.current.value = ""; 
                     alert("Import berhasil!");
                 },
                 onError: () => {
-                    fileInputRef.current.value = ""; // Reset input
+                    fileInputRef.current.value = "";
                     alert("Gagal import, cek format excel Anda.");
                 }
             });
@@ -87,7 +89,7 @@ export default function Index({ products, search }) {
 
     return (
         <>
-            <Head title="Produk" />
+            <Head title="Manajemen Produk" />
 
             {/* Input File Tersembunyi untuk Import */}
             <input 
@@ -100,20 +102,20 @@ export default function Index({ products, search }) {
 
             <div className="mb-6 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                 <div className="flex flex-col">
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2 uppercase tracking-tight">
                         <IconPackage size={28} className="text-primary-500" />
                         Manajemen Produk
                     </h1>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Kelola Inventaris & Stok Barang</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                    {/* --- TOMBOL DELETE MASSAL --- */}
                     <button
                         onClick={handleBulkDelete}
                         disabled={selectedIds.length === 0}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase transition-all ${
                             selectedIds.length > 0
-                                ? "bg-red-500 hover:bg-red-600 text-white shadow-md animate-pulse"
+                                ? "bg-red-500 hover:bg-red-600 text-white shadow-md shadow-red-200 dark:shadow-none"
                                 : "bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600"
                         }`}
                     >
@@ -121,31 +123,28 @@ export default function Index({ products, search }) {
                         {selectedIds.length > 0 ? `Hapus (${selectedIds.length})` : "Hapus Banyak"}
                     </button>
 
-                    {/* --- TOMBOL DOWNLOAD TEMPLATE --- */}
                     <a
                         href={route("products.template")}
-                        className="bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-colors"
+                        className="bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800 hover:bg-green-100 px-4 py-2.5 rounded-xl text-xs font-bold uppercase flex items-center gap-2 transition-colors"
                     >
                         <IconDownload size={18} />
                         Template
                     </a>
 
-                    {/* --- TOMBOL IMPORT EXCEL --- */}
                     <button
                         onClick={handleImportClick}
-                        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 rounded-xl shadow-sm transition-colors flex items-center gap-2 text-sm font-medium"
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-xl shadow-sm transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wide"
                     >
                         <IconFileTypeXls size={18} />
-                        Import Excel
+                        Import
                     </button>
 
-                    {/* --- TOMBOL TAMBAH PRODUK --- */}
                     <Link
                         href={route("products.create")}
-                        className="bg-primary-500 hover:bg-primary-600 text-white px-5 py-2.5 rounded-xl shadow-sm transition-colors flex items-center gap-2 text-sm font-medium"
+                        className="bg-primary-500 hover:bg-primary-600 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-primary-200 dark:shadow-none transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wide"
                     >
                         <IconPlus size={18} />
-                        Tambah
+                        Tambah Produk
                     </Link>
                 </div>
             </div>
@@ -153,15 +152,13 @@ export default function Index({ products, search }) {
             {/* Search Bar */}
             <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 mb-6 shadow-sm">
                 <form onSubmit={handleSearch} className="relative w-full">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <IconSearch size={18} className="text-slate-400" />
-                    </div>
+                    <IconSearch size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 w-full rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white sm:text-sm focus:border-primary-500 focus:ring-primary-500"
-                        placeholder="Cari produk berdasarkan nama atau barcode..."
+                        className="pl-10 w-full rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-primary-500 focus:border-primary-500 transition-all font-medium"
+                        placeholder="Cari produk berdasarkan nama atau scan barcode..."
                     />
                 </form>
             </div>
@@ -170,7 +167,7 @@ export default function Index({ products, search }) {
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                        <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-800 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                        <thead className="text-[10px] text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-800 font-black tracking-widest">
                             <tr>
                                 <th scope="col" className="px-4 py-4 w-10 text-center">
                                     <input 
@@ -180,15 +177,16 @@ export default function Index({ products, search }) {
                                         checked={products.data.length > 0 && selectedIds.length === products.data.length}
                                     />
                                 </th>
-                                <th scope="col" className="px-6 py-4">Barcode</th>
-                                <th scope="col" className="px-6 py-4">Nama Produk</th>
-                                <th scope="col" className="px-6 py-4">Harga</th>
+                                <th scope="col" className="px-6 py-4">Produk</th>
+                                <th scope="col" className="px-6 py-4">Informasi Produk</th>
+                                <th scope="col" className="px-6 py-4 text-center">Stok & Satuan</th>
+                                <th scope="col" className="px-6 py-4">Harga Jual</th>
                                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                            {products.data.map((product) => (
-                                <tr key={product.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${selectedIds.includes(product.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {products.data.length > 0 ? products.data.map((product) => (
+                                <tr key={product.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${selectedIds.includes(product.id) ? 'bg-primary-50/50 dark:bg-primary-900/10' : ''}`}>
                                     <td className="px-4 py-4 text-center">
                                         <input 
                                             type="checkbox" 
@@ -197,24 +195,79 @@ export default function Index({ products, search }) {
                                             onChange={() => handleCheckOne(product.id)}
                                         />
                                     </td>
-                                    <td className="px-6 py-4 font-mono text-slate-500">{product.barcode || '-'}</td>
+                                    {/* KOLOM GAMBAR PRODUK */}
                                     <td className="px-6 py-4">
-                                        <div className="font-medium text-slate-900 dark:text-white">{product.title}</div>
-                                        {product.expired_date && <span className="text-xs text-red-500 bg-red-50 px-1 py-0.5 rounded">Exp: {product.expired_date}</span>}
+                                        <div className="w-12 h-12 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm bg-slate-50 dark:bg-slate-800">
+                                            <img 
+                                                src={product.image 
+                                                    ? `/storage/products/${product.image}` 
+                                                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(product.title)}&background=random`} 
+                                                className="w-full h-full object-cover"
+                                                alt={product.title}
+                                                onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(product.title)}&background=random` }}
+                                            />
+                                        </div>
                                     </td>
-                                    <td className="px-6 py-4">Rp {new Intl.NumberFormat("id-ID").format(product.sell_price)}</td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col gap-0.5">
+                                            <div className="font-bold text-slate-900 dark:text-white uppercase leading-tight">{product.title}</div>
+                                            <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                                                <IconBarcode size={12} /> {product.barcode || 'TANPA BARCODE'}
+                                            </div>
+                                            {product.expired_date && (
+                                                <div className="mt-1 text-[10px] font-black uppercase text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-md inline-block w-fit">
+                                                    EXP: {product.expired_date}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <div className="inline-flex flex-col items-center">
+                                            <span className={`text-sm font-black ${product.stock <= 5 ? 'text-red-500 animate-pulse' : 'text-slate-700 dark:text-slate-300'}`}>
+                                                {product.stock}
+                                            </span>
+                                            <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 tracking-tighter">
+                                                {product.unit || 'Pcs'}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-200">
+                                        <span className="text-xs text-slate-400 mr-1">Rp</span>
+                                        {new Intl.NumberFormat("id-ID").format(product.sell_price)}
+                                    </td>
                                     <td className="px-6 py-4 text-center">
                                         <div className="flex justify-center gap-2">
-                                            <Link href={route("products.edit", product.id)} className="p-2 bg-yellow-50 text-yellow-600 rounded hover:bg-yellow-100 transition-colors"><IconPencil size={18} /></Link>
-                                            <button onClick={() => deleteProduct(product.id)} className="p-2 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"><IconTrash size={18} /></button>
+                                            <Link 
+                                                href={route("products.edit", product.id)} 
+                                                className="p-2 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 rounded-xl hover:bg-yellow-100 transition-all active:scale-90"
+                                                title="Edit Produk"
+                                            >
+                                                <IconPencil size={18} />
+                                            </Link>
+                                            <button 
+                                                onClick={() => deleteProduct(product.id)} 
+                                                className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-100 transition-all active:scale-90"
+                                                title="Hapus Produk"
+                                            >
+                                                <IconTrash size={18} />
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                            )) : (
+                                <tr>
+                                    <td colSpan="6" className="p-20 text-center">
+                                        <div className="flex flex-col items-center gap-2 opacity-20">
+                                            <IconInbox size={64} className="text-slate-400" />
+                                            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Produk Tidak Ditemukan</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
-                <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700">
+                <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
                     <Pagination links={products.links} />
                 </div>
             </div>

@@ -23,7 +23,7 @@ export default function Edit({ category }) {
     });
 
     const [imagePreview, setImagePreview] = useState(
-        category.image ? `/storage/categories/${category.image}` : null
+        category.image ? `/storage/category/${category.image}` : null
     );
 
     const handleImageChange = (e) => {
@@ -49,28 +49,32 @@ export default function Edit({ category }) {
             <div className="mb-6">
                 <Link
                     href={route("categories.index")}
-                    className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary-600 mb-3"
+                    className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary-600 mb-3 transition-colors uppercase font-bold tracking-tight"
                 >
                     <IconArrowLeft size={16} />
                     Kembali ke Kategori
                 </Link>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2 uppercase tracking-tight">
                     <IconCategory size={28} className="text-primary-500" />
                     Edit Kategori
                 </h1>
-                <p className="text-sm text-slate-500 mt-1">{category.name}</p>
+                <p className="text-sm text-slate-500 mt-1 uppercase font-medium tracking-wider">
+                    {category.name}
+                </p>
             </div>
 
             <form onSubmit={submit}>
                 <div className="max-w-2xl">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            {/* Image Section - Opsional */}
                             <div>
-                                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                                <h3 className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-2 tracking-widest">
                                     <IconPhoto size={16} />
-                                    Gambar
+                                    Gambar (Opsional)
                                 </h3>
-                                <div className="aspect-video rounded-xl bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center overflow-hidden mb-3">
+                                <div className="aspect-video rounded-xl bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center overflow-hidden mb-3 transition-all hover:border-primary-300">
                                     {imagePreview ? (
                                         <img
                                             src={imagePreview}
@@ -78,34 +82,45 @@ export default function Edit({ category }) {
                                             className="w-full h-full object-cover"
                                         />
                                     ) : (
-                                        <IconPhoto
-                                            size={32}
-                                            className="text-slate-400"
-                                        />
+                                        <div className="text-center">
+                                            <IconPhoto
+                                                size={32}
+                                                className="text-slate-400 mx-auto mb-1"
+                                            />
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase">No Image</p>
+                                        </div>
                                     )}
                                 </div>
                                 <Input
                                     type="file"
+                                    label="Ganti Gambar"
                                     onChange={handleImageChange}
                                     errors={errors.image}
                                     accept="image/*"
                                 />
+                                <p className="mt-2 text-[10px] text-slate-400 italic">
+                                    *Kosongkan jika tidak ingin mengubah gambar
+                                </p>
                             </div>
 
+                            {/* Info Section */}
                             <div className="space-y-4">
                                 <Input
                                     type="text"
                                     label="Nama Kategori"
-                                    placeholder="Masukkan nama"
+                                    placeholder="Masukkan nama kategori"
                                     errors={errors.name}
                                     onChange={(e) =>
                                         setData("name", e.target.value)
                                     }
                                     value={data.name}
+                                    required
                                 />
+
+                                {/* Description Section - Opsional */}
                                 <Textarea
-                                    label="Deskripsi"
-                                    placeholder="Deskripsi kategori"
+                                    label="Deskripsi (Opsional)"
+                                    placeholder="Deskripsi kategori..."
                                     errors={errors.description}
                                     onChange={(e) =>
                                         setData("description", e.target.value)
@@ -116,22 +131,21 @@ export default function Edit({ category }) {
                             </div>
                         </div>
 
+                        {/* Footer Actions */}
                         <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
                             <Link
                                 href={route("categories.index")}
-                                className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors"
+                                className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs uppercase tracking-widest transition-all"
                             >
                                 Batal
                             </Link>
                             <button
                                 type="submit"
                                 disabled={processing}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-medium transition-colors disabled:opacity-50"
+                                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-primary-500/25 active:scale-95 disabled:opacity-50"
                             >
                                 <IconDeviceFloppy size={18} />
-                                {processing
-                                    ? "Menyimpan..."
-                                    : "Simpan Perubahan"}
+                                {processing ? "Menyimpan..." : "Simpan Perubahan"}
                             </button>
                         </div>
                     </div>

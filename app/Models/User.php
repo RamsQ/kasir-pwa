@@ -4,17 +4,21 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes; // Tambahkan ini
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasRoles;
+    /**
+     * SoftDeletes: Memungkinkan penghapusan akun sementara (mengisi deleted_at)
+     * HasRoles: Integrasi dengan Spatie Permission
+     */
+    use HasFactory, Notifiable, HasRoles, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
-     * Ditambahkan 'avatar' agar bisa disimpan ke database.
      *
      * @var array<int, string>
      */
@@ -22,7 +26,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'avatar', // WAJIB ADA karena di DB ada kolom ini
+        'avatar', 
     ];
 
     /**
@@ -49,7 +53,17 @@ class User extends Authenticatable
     }
 
     /**
+     * Relasi ke StockOpname
+     * Seorang user bisa melakukan banyak stock opname
+     */
+    public function stockOpnames()
+    {
+        return $this->hasMany(StockOpname::class);
+    }
+
+    /**
      * get all permissions users
+     * Digunakan oleh helper Permission.jsx di frontend
      */
     public function getPermissions()
     {

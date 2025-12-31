@@ -24,7 +24,10 @@ import {
     IconRefresh,
     IconReceipt,
     IconTicket,
-    IconPackageExport, // <--- Import Ikon Baru untuk Laporan Produk
+    IconPackageExport,
+    IconCash,
+    IconAdjustmentsHorizontal,
+    IconAlertTriangle, // <--- [BARU] Ikon untuk Laporan Expired
 } from "@tabler/icons-react";
 import hasAnyPermission from "./Permission";
 import React from "react";
@@ -62,6 +65,13 @@ export default function Menu() {
                     href: route("products.index"),
                     active: url === "/dashboard/products" ? true : false,
                     icon: <IconBox size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["products-access"]),
+                },
+                {
+                    title: "Stock Opname",
+                    href: route("stock_opnames.index"),
+                    active: url.startsWith("/dashboard/stock-opnames"),
+                    icon: <IconAdjustmentsHorizontal size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["products-access"]),
                 },
                 {
@@ -111,7 +121,6 @@ export default function Menu() {
                     ),
                     permissions: hasAnyPermission(["reports-access"]),
                 },
-                // --- [BARU] MENU LAPORAN PRODUK ---
                 {
                     title: "Laporan Produk",
                     href: route("reports.products.index"),
@@ -119,7 +128,15 @@ export default function Menu() {
                     icon: <IconPackageExport size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["reports-access"]),
                 },
-                // ---------------------------------
+                // --- [BARU] MENU LAPORAN EXPIRED ---
+                {
+                    title: "Kontrol Expired",
+                    href: route("reports.expired.index"),
+                    active: url.startsWith("/dashboard/reports/expired"),
+                    icon: <IconAlertTriangle size={20} strokeWidth={1.5} className="text-red-500" />,
+                    permissions: hasAnyPermission(["reports-access"]),
+                },
+                // ----------------------------------
                 {
                     title: "Laporan Keuntungan",
                     href: route("reports.profits.index"),
@@ -132,6 +149,13 @@ export default function Menu() {
                     href: route("reports.refund"),
                     active: url.startsWith("/dashboard/reports/refund"),
                     icon: <IconRefresh size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["reports-access"]),
+                },
+                {
+                    title: "Laporan Shift",
+                    href: route("shifts.index"),
+                    active: url.startsWith("/dashboard/shifts"),
+                    icon: <IconCash size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["reports-access"]),
                 },
             ],

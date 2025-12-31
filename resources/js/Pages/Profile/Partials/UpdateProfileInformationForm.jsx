@@ -1,91 +1,141 @@
+import React from 'react';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
-import { Link, useForm, usePage } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import { Transition } from '@headlessui/react';
+import { IconCamera, IconUser, IconMail } from '@tabler/icons-react';
 
-export default function UpdateProfileInformation({ mustVerifyEmail, status, className = '' }) {
+export default function UpdateProfileInformation({ className = '' }) {
     const user = usePage().props.auth.user;
 
-    const { data, setData, patch, errors, processing, recentlySuccessful } = useForm({
+    const { data, setData, post, errors, processing, recentlySuccessful } = useForm({
         name: user.name,
         email: user.email,
+        image: null, // File baru yang akan diupload
+        _method: 'PATCH', // Spoofing agar Laravel mengenali ini sebagai PATCH di route
     });
 
     const submit = (e) => {
         e.preventDefault();
+        
+        // GUNAKAN post() untuk upload file di Laravel/Inertia
+        // Route tetap 'profile.update' (PATCH) karena sudah dispoof lewat data _method
+        post(route('profile.update'), {
+            forceFormData: true, // Wajib true untuk Multipart/Form-Data
+            preserveScroll: true,
+            onSuccess: () => {
+                // Reset form state image agar URL.createObjectURL tidak bocor memori
+                setData('image', null);
+            },
+        });
+    };
 
-        patch(route('profile.update'));
+    // Helper untuk menentukan sumber gambar profil
+    const getProfileImage = () => {
+        // 1. Jika ada file baru yang dipilih user
+        if (data.image) {
+            return URL.createObjectURL(data.image);
+        }
+        
+        // 2. Jika user sudah memiliki gambar di database
+        if (user.image) {
+            // Jika data di DB adalah URL luar (seperti data lama atau social login)
+            if (user.image.startsWith('http')) {
+                return user.image;
+            }
+            // Jika data di DB adalah nama file (Hasil upload baru)
+            return `/storage/users/${user.image}`;
+        }
+
+        // 3. Default avatar jika kosong
+        return `https://ui-avatars.com/api/?name=${user.name}&background=random`;
     };
 
     return (
         <section className={className}>
-            <header>
-                <h2 className="text-lg font-medium text-gray-900">Profile Information</h2>
-
-                <p className="mt-1 text-sm text-gray-600">
-                    Update your account's profile information and email address.
-                </p>
+            <header className="flex items-center gap-4">
+                <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-2xl text-primary-600">
+                    <IconUser size={24} />
+                </div>
+                <div>
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">Informasi Profil</h2>
+                    <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                        Perbarui informasi profil dan alamat email akun Anda.
+                    </p>
+                </div>
             </header>
 
             <form onSubmit={submit} className="mt-6 space-y-6">
-                <div>
-                    <InputLabel htmlFor="name" value="Name" />
+                {/* Bagian Upload Foto */}
+                <div className="flex flex-col sm:flex-row items-center gap-6 bg-slate-100/50 dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800">
+                    <div className="relative group">
+                        <img 
+                            src={getProfileImage()} 
+                            className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-slate-700 shadow-xl transition-transform group-hover:scale-105"
+                            alt="Profile Preview"
+                            onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${user.name}&background=random` }}
+                        />
+                        <label className="absolute bottom-0 right-0 bg-primary-500 text-white p-2 rounded-full cursor-pointer shadow-lg hover:bg-primary-600 transition-all border-2 border-white dark:border-slate-900">
+                            <IconCamera size={16} />
+                            <input 
+                                type="file" 
+                                className="hidden" 
+                                onChange={(e) => setData('image', e.target.files[0])} 
+                                accept="image/png, image/jpg, image/jpeg" 
+                            />
+                        </label>
+                    </div>
+                    <div className="text-center sm:text-left">
+                        <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-1">Foto Profil</p>
+                        <p className="text-[11px] text-slate-800 dark:text-slate-300 leading-relaxed font-medium">
+                            Format: JPG, PNG, atau JPEG.<br />
+                            Ukuran maksimal 2MB.
+                        </p>
+                        {errors.image && <InputError className="mt-2" message={errors.image} />}
+                    </div>
+                </div>
 
+                {/* Input Nama */}
+                <div>
+                    <div className="flex items-center gap-2 mb-2">
+                        <IconUser size={16} className="text-slate-500 dark:text-slate-400" />
+                        <InputLabel htmlFor="name" value="Nama Lengkap" className="!mb-0 !text-slate-900 dark:!text-white font-bold" />
+                    </div>
                     <TextInput
                         id="name"
-                        className="mt-1 block w-full"
+                        className="mt-1 block w-full !rounded-2xl border-slate-300 dark:border-slate-700 focus:ring-primary-500 dark:bg-slate-900 dark:text-white"
                         value={data.name}
                         onChange={(e) => setData('name', e.target.value)}
                         required
-                        isFocused
                         autoComplete="name"
                     />
-
                     <InputError className="mt-2" message={errors.name} />
                 </div>
 
+                {/* Input Email */}
                 <div>
-                    <InputLabel htmlFor="email" value="Email" />
-
+                    <div className="flex items-center gap-2 mb-2">
+                        <IconMail size={16} className="text-slate-500 dark:text-slate-400" />
+                        <InputLabel htmlFor="email" value="Alamat Email" className="!mb-0 !text-slate-900 dark:!text-white font-bold" />
+                    </div>
                     <TextInput
                         id="email"
                         type="email"
-                        className="mt-1 block w-full"
+                        className="mt-1 block w-full !rounded-2xl border-slate-300 dark:border-slate-800 focus:ring-primary-500 dark:bg-slate-900 dark:text-white"
                         value={data.email}
                         onChange={(e) => setData('email', e.target.value)}
                         required
                         autoComplete="username"
                     />
-
                     <InputError className="mt-2" message={errors.email} />
                 </div>
 
-                {mustVerifyEmail && user.email_verified_at === null && (
-                    <div>
-                        <p className="text-sm mt-2 text-gray-800">
-                            Your email address is unverified.
-                            <Link
-                                href={route('verification.send')}
-                                method="post"
-                                as="button"
-                                className="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                            >
-                                Click here to re-send the verification email.
-                            </Link>
-                        </p>
-
-                        {status === 'verification-link-sent' && (
-                            <div className="mt-2 font-medium text-sm text-green-600">
-                                A new verification link has been sent to your email address.
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                <div className="flex items-center gap-4">
-                    <PrimaryButton disabled={processing}>Save</PrimaryButton>
+                <div className="flex items-center gap-4 pt-2">
+                    <PrimaryButton disabled={processing} className="!rounded-2xl !px-8 !py-3">
+                        Simpan Perubahan
+                    </PrimaryButton>
 
                     <Transition
                         show={recentlySuccessful}
@@ -94,7 +144,7 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status, clas
                         leave="transition ease-in-out"
                         leaveTo="opacity-0"
                     >
-                        <p className="text-sm text-gray-600">Saved.</p>
+                        <p className="text-sm text-emerald-700 dark:text-emerald-400 font-bold">Berhasil disimpan.</p>
                     </Transition>
                 </div>
             </form>

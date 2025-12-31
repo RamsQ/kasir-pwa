@@ -1,63 +1,86 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Apps;
 
-use App\Http\Requests\ProfileUpdateRequest;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Http\RedirectResponse;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
-use Inertia\Response;
+use App\Models\User;
 
 class ProfileController extends Controller
 {
-    /**
-     * Display the user's profile form.
-     */
-    public function edit(Request $request): Response
+    public function index()
     {
-        return Inertia::render('Profile/Edit', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
-            'status' => session('status'),
+        return Inertia::render('Dashboard/Profile/Index', [
+            'user' => auth()->user()
         ]);
     }
 
     /**
-     * Update the user's profile information.
+     * Update Profile (Name, Email, and Image)
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
+    public function update(Request $request)
     {
-        $request->user()->fill($request->validated());
+        $user = auth()->user();
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        $request->validate([
+            'name'  => 'required|string|max:255',
+            'email' => ['required', 'email', Rule::unique('users')->ignore($user->id)],
+            'image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048', 
+        ]);
+
+        // 1. Ambil data input nama dan email
+        $user->name = $request->name;
+        $user->email = $request->email;
+
+        // 2. Logika Upload Foto Profil
+        if ($request->hasFile('image')) {
+            
+            // Hapus foto lama jika ada
+            if ($user->image && file_exists(public_path('storage/users/' . $user->image))) {
+                @unlink(public_path('storage/users/' . $user->image));
+            }
+
+            // Ambil file dan buat nama unik
+            $image = $request->file('image');
+            $filename = time() . '_' . $image->hashName();
+            
+            // Simpan LANGSUNG ke folder public/storage/users
+            // Pastikan folder ini sudah ada atau dibuat manual
+            $image->move(public_path('storage/users'), $filename);
+            
+            // Simpan nama filenya saja ke kolom 'image' di database
+            $user->image = $filename;
         }
 
-        $request->user()->save();
+        // 3. Simpan perubahan ke database
+        $user->save();
 
-        return Redirect::route('profile.edit');
+        return redirect()->back()->with('success', 'Profil berhasil diperbarui!');
     }
 
     /**
-     * Delete the user's account.
+     * Update Password (Tetap sama)
      */
-    public function destroy(Request $request): RedirectResponse
+    public function updatePassword(Request $request)
     {
         $request->validate([
-            'password' => ['required', 'current_password'],
+            'current_password' => 'required',
+            'password'         => 'required|min:8|confirmed',
         ]);
 
-        $user = $request->user();
+        $user = auth()->user();
 
-        Auth::logout();
+        if (!Hash::check($request->current_password, $user->password)) {
+            return back()->withErrors(['current_password' => 'Password saat ini tidak cocok.']);
+        }
 
-        $user->delete();
+        $user->update([
+            'password' => Hash::make($request->password),
+        ]);
 
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return Redirect::to('/');
+        return back()->with('success', 'Password berhasil diubah!');
     }
 }

@@ -3,10 +3,10 @@ import { Head, Link } from "@inertiajs/react";
 import { 
     IconArrowLeft, IconPrinter, IconCash, IconPackage, 
     IconBuildingStore, IconReceipt, IconHash, IconCalendar, IconUser,
-    IconFileInvoice, IconUsers, IconBrandWhatsapp, IconExternalLink
+    IconFileInvoice, IconUsers, IconBrandWhatsapp, IconExternalLink, IconScale
 } from "@tabler/icons-react";
 import Swal from "sweetalert2";
-import ThermalReceipt, { ThermalReceipt58mm } from "@/Components/Receipt/ThermalReceipt";
+import ThermalReceipt from "@/Components/Receipt/ThermalReceipt";
 
 export default function Print({ transaction, receiptSetting, isPublic = false }) {
     // 1. Guard Utama
@@ -53,15 +53,21 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
         if (phone.startsWith("0")) phone = "62" + phone.slice(1);
         else if (!phone.startsWith("62")) phone = "62" + phone;
 
-        // Link Validasi untuk Pelanggan
         const shareLink = `${window.location.origin}/share/invoice/${transaction.invoice}`;
 
-        // Susun rincian item dengan info diskon produk
         const itemDetails = details.map(item => {
-            const unitPrice = item.price / item.qty;
-            const originalPrice = item.product?.sell_price || unitPrice;
-            const promoTag = originalPrice > unitPrice ? ' (PROMO)' : '';
-            return `- ${item.product?.title}${promoTag} [${item.qty}x] = ${formatPrice(item.price)}`;
+            // LOGIKA PRIORITAS SATUAN (String Database -> Relasi -> Default)
+            let unitLabel = "Pcs";
+            if (typeof item.unit === 'string' && item.unit.trim() !== "") {
+                unitLabel = item.unit;
+            } else if (item.unit && typeof item.unit === 'object') {
+                unitLabel = item.unit.unit_name || "Pcs";
+            } else if (item.product_unit?.unit_name) {
+                unitLabel = item.product_unit.unit_name;
+            }
+
+            let text = `- ${item.product?.title} [${item.qty} ${unitLabel}] = ${formatPrice(item.price)}`;
+            return text;
         }).join('\n');
 
         const message = 
@@ -70,14 +76,8 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
             `Halo *${transaction.customer?.name || "Pelanggan"}*,\n` +
             `Terima kasih telah berbelanja.\n\n` +
             `No. Invoice: #${transaction.invoice}\n` +
-            `*Rincian Belanja:*\n` +
-            `${itemDetails}\n` +
-            `----------------------------------\n` +
             `Total: *${formatPrice(transaction.grand_total)}*\n` +
-            `Status: *LUNAS*\n\n` +
-            `Klik link di bawah ini untuk melihat struk lengkap Anda:\n` +
-            `${shareLink}\n\n` +
-            `_Semoga hari Anda menyenangkan!_`;
+            `${shareLink}`;
 
         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank");
     };
@@ -88,10 +88,9 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
 
             <div className={`min-h-screen ${isPublic ? 'bg-white' : 'bg-slate-950'} text-slate-300 p-2 md:p-8 print:bg-white print:p-0`}>
                 
-                {/* --- NAVIGATION --- */}
                 {!isPublic && (
                     <div className="max-w-4xl mx-auto mb-6 flex flex-wrap justify-between items-center gap-4 print:hidden">
-                        <Link href={route("transactions.index")} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors bg-slate-900 px-4 py-2 rounded-xl border border-slate-800 shadow-lg">
+                        <Link href={route("transactions.index")} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors bg-slate-900 px-4 py-2 rounded-xl border border-slate-800 shadow-lg font-bold text-xs uppercase tracking-widest">
                             <IconArrowLeft size={18} /> Kembali
                         </Link>
                         
@@ -100,24 +99,23 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
                                 { id: "invoice", label: "A4", icon: IconFileInvoice }, 
                                 { id: "thermal80", label: "80mm", icon: IconReceipt }
                             ].map((mode) => (
-                                <button key={mode.id} onClick={() => setPrintMode(mode.id)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${printMode === mode.id ? "bg-emerald-600 text-white shadow-md" : "text-slate-500 hover:text-slate-200"}`}>
+                                <button key={mode.id} onClick={() => setPrintMode(mode.id)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${printMode === mode.id ? "bg-emerald-600 text-white shadow-md" : "text-slate-500 hover:text-slate-200"}`}>
                                     <mode.icon size={16} /> {mode.label}
                                 </button>
                             ))}
                         </div>
 
                         <div className="flex gap-2">
-                            <button onClick={sendWhatsApp} className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-xl shadow-lg active:scale-95">
+                            <button onClick={sendWhatsApp} className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-xl shadow-lg active:scale-95 text-xs uppercase tracking-widest">
                                 <IconBrandWhatsapp size={20} /> KIRIM WA
                             </button>
-                            <button onClick={() => window.print()} className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-black rounded-xl shadow-lg active:scale-95">
+                            <button onClick={() => window.print()} className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-black rounded-xl shadow-lg active:scale-95 text-xs uppercase tracking-widest">
                                 <IconPrinter size={20} /> CETAK
                             </button>
                         </div>
                     </div>
                 )}
 
-                {/* --- AREA KONTEN --- */}
                 <div className="max-w-4xl mx-auto print:max-w-full">
                     <div className={`print-content bg-white ${isPublic ? '' : 'rounded-[2.5rem] shadow-2xl'} overflow-hidden print:shadow-none print:rounded-none`}>
                         
@@ -129,21 +127,21 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
                                         {storeLogo ? <img src={storeLogo} className="w-20 h-20 object-contain" /> : <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400"><IconBuildingStore size={32} /></div>}
                                         <div>
                                             <h1 className="text-2xl font-black uppercase tracking-tighter text-slate-900 leading-none">{storeName}</h1>
-                                            <p className="text-[11px] text-slate-500 max-w-xs mt-2 leading-relaxed">{storeAddress}</p>
+                                            <p className="text-[11px] text-slate-500 max-w-xs mt-2 leading-relaxed font-medium uppercase tracking-wide">{storeAddress}</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
                                         <h2 className="text-5xl font-black text-emerald-500/10 print:text-emerald-500/20 leading-none mb-2 tracking-tighter uppercase">Invoice</h2>
-                                        <span className="bg-emerald-600 text-white px-3 py-1 rounded-lg text-xs font-bold font-mono">#{transaction.invoice}</span>
+                                        <span className="bg-emerald-600 text-white px-3 py-1 rounded-lg text-xs font-bold font-mono shadow-sm">#{transaction.invoice}</span>
                                     </div>
                                 </div>
 
                                 {/* Info Grid */}
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12 border-y border-slate-100 py-6">
-                                    <div><p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1"><IconUsers size={12}/> Pelanggan</p><p className="text-sm font-bold text-slate-900 uppercase">{transaction.customer?.name || "UMUM"}</p></div>
-                                    <div><p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1"><IconUser size={12}/> Kasir</p><p className="text-sm font-bold text-slate-700 uppercase">{transaction.cashier?.name}</p></div>
-                                    <div><p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1"><IconCalendar size={12}/> Waktu</p><p className="text-sm font-bold text-slate-700">{new Date(transaction.created_at).toLocaleDateString('id-ID')}</p></div>
-                                    <div><p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1"><IconHash size={12}/> Metode</p><p className="text-sm font-bold text-emerald-600 font-black italic">{transaction.payment_method?.toUpperCase()}</p></div>
+                                    <div><p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1 tracking-widest"><IconUsers size={12}/> Pelanggan</p><p className="text-sm font-bold text-slate-900 uppercase">{transaction.customer?.name || "UMUM"}</p></div>
+                                    <div><p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1 tracking-widest"><IconUser size={12}/> Kasir</p><p className="text-sm font-bold text-slate-700 uppercase">{transaction.cashier?.name}</p></div>
+                                    <div><p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1 tracking-widest"><IconCalendar size={12}/> Waktu</p><p className="text-sm font-bold text-slate-700">{new Date(transaction.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p></div>
+                                    <div><p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1 tracking-widest"><IconHash size={12}/> Metode</p><p className="text-sm font-bold text-emerald-600 font-black italic">{transaction.payment_method?.toUpperCase()}</p></div>
                                 </div>
 
                                 {/* Table */}
@@ -152,70 +150,75 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
                                         <thead>
                                             <tr className="border-b-2 border-slate-900 text-left text-slate-900">
                                                 <th className="py-4 text-[10px] font-black uppercase tracking-widest">Deskripsi Produk</th>
-                                                <th className="py-4 text-right text-[10px] font-black uppercase tracking-widest">Harga</th>
-                                                <th className="py-4 text-center text-[10px] font-black uppercase tracking-widest">Qty</th>
-                                                <th className="py-4 text-right text-[10px] font-black uppercase tracking-widest">Total</th>
+                                                <th className="py-4 text-right text-[10px] font-black uppercase tracking-widest">Harga Satuan</th>
+                                                <th className="py-4 text-center text-[10px] font-black uppercase tracking-widest">Jumlah (Qty)</th>
+                                                <th className="py-4 text-right text-[10px] font-black uppercase tracking-widest">Total Harga</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 text-slate-700">
                                             {details.map((item, i) => {
-                                                // --- LOGIKA DISKON PER PRODUK (A4) ---
                                                 const unitPrice = item.price / item.qty;
                                                 const originalPrice = item.product?.sell_price || unitPrice;
                                                 const isDiscounted = originalPrice > unitPrice;
+                                                
+                                                // --- LOGIKA PRIORITAS SATUAN AGAR TIDAK MUNCUL PCS JIKA ADA SACHET ---
+                                                let currentUnit = "Pcs";
+                                                if (typeof item.unit === 'string' && item.unit.trim() !== "") {
+                                                    currentUnit = item.unit; // Ini akan mengambil "Sachet" dari DB
+                                                } else if (item.unit && typeof item.unit === 'object') {
+                                                    currentUnit = item.unit.unit_name || "Pcs";
+                                                }
 
                                                 return (
-                                                    <React.Fragment key={i}>
-                                                        <tr>
-                                                            <td className="py-5">
-                                                                <p className="font-bold text-slate-900 uppercase leading-tight mb-1">{item.product?.title}</p>
+                                                    <tr key={i}>
+                                                        <td className="py-5">
+                                                            <p className="font-bold text-slate-900 uppercase leading-tight mb-1">
+                                                                {item.product?.title}
+                                                            </p>
+                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                                                                Satuan: {String(currentUnit)}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-5 text-right text-sm">
+                                                            <div className="flex flex-col items-end">
+                                                                <span className="font-bold text-slate-700">{formatPrice(unitPrice)}</span>
                                                                 {isDiscounted && (
-                                                                    <span className="text-[9px] font-black text-rose-500 uppercase italic">
-                                                                        Hemat {formatPrice(originalPrice - unitPrice)} / item
-                                                                    </span>
+                                                                    <span className="text-[10px] text-slate-400 line-through">{formatPrice(originalPrice)}</span>
                                                                 )}
-                                                            </td>
-                                                            <td className="py-5 text-right text-sm">
-                                                                <div className="flex flex-col items-end">
-                                                                    <span className="font-medium text-slate-500">{formatPrice(unitPrice)}</span>
-                                                                    {isDiscounted && (
-                                                                        <span className="text-[10px] text-slate-400 line-through">{formatPrice(originalPrice)}</span>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                            <td className="py-5 text-center text-sm font-bold text-slate-900">{item.qty}</td>
-                                                            <td className="py-5 text-right text-sm font-black text-slate-900">{formatPrice(item.price)}</td>
-                                                        </tr>
-                                                        {item.product?.type === 'bundle' && item.product?.bundle_items?.length > 0 && (
-                                                            <tr>
-                                                                <td colSpan="4" className="pb-5 pt-0">
-                                                                    <div className="bg-slate-50 rounded-2xl p-4 ml-6 border-l-4 border-emerald-500 italic text-[11px] text-slate-500">
-                                                                        {item.product.bundle_items.map((bi, idx) => (<div key={idx}>- {bi.title} (x{bi.pivot?.qty * item.qty})</div>))}
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        )}
-                                                    </React.Fragment>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-5 text-center text-sm font-black text-slate-900">
+                                                            {item.qty} <span className="text-[10px] text-slate-400 font-bold uppercase ml-0.5">{String(currentUnit)}</span>
+                                                        </td>
+                                                        <td className="py-5 text-right text-sm font-black text-slate-900">{formatPrice(item.price)}</td>
+                                                    </tr>
                                                 );
                                             })}
                                         </tbody>
                                     </table>
                                 </div>
 
-                                {/* Footer */}
+                                {/* Footer Total */}
                                 <div className="mt-12 flex justify-end">
-                                    <div className="w-full md:w-80 bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                                        {Number(transaction.discount) > 0 && (
-                                            <div className="flex justify-between items-center mb-2 text-slate-500">
-                                                <span className="text-[10px] font-black uppercase">Diskon Global</span>
-                                                <span className="text-sm font-bold text-rose-500">-{formatPrice(transaction.discount)}</span>
-                                            </div>
-                                        )}
-                                        <div className="flex justify-between items-center pt-4 border-t border-slate-200">
-                                            <span className="text-[10px] font-black uppercase text-slate-900 tracking-widest">Total Bayar</span>
-                                            <span className="text-2xl font-black text-emerald-600">{formatPrice(transaction.grand_total)}</span>
+                                    <div className="w-full md:w-80 bg-slate-900 p-6 rounded-[2rem] shadow-xl text-white">
+                                        <div className="flex justify-between items-center pt-4 border-t border-white/10">
+                                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total Bayar</span>
+                                            <span className="text-2xl font-black text-emerald-400">{formatPrice(transaction.grand_total)}</span>
+                                        </div>
+                                        <div className="mt-4 flex justify-between items-center text-slate-400">
+                                            <span className="text-[9px] font-bold uppercase">Bayar (Cash)</span>
+                                            <span className="text-xs font-bold">{formatPrice(transaction.cash)}</span>
+                                        </div>
+                                        <div className="mt-1 flex justify-between items-center text-slate-400">
+                                            <span className="text-[9px] font-bold uppercase">Kembali</span>
+                                            <span className="text-xs font-bold">{formatPrice(transaction.change)}</span>
                                         </div>
                                     </div>
+                                </div>
+                                
+                                <div className="mt-auto pt-10 text-center">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 mb-2">Terima Kasih</p>
+                                    <p className="text-xs text-slate-400 italic font-medium">"{storeFooter}"</p>
                                 </div>
                             </div>
                         ) : (

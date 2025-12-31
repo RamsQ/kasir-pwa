@@ -9,6 +9,14 @@ export default function Sidebar({ sidebarOpen }) {
     const { auth } = usePage().props;
     const menuNavigation = Menu();
 
+    // Helper untuk mendapatkan avatar/foto profil
+    // Mengecek apakah image mengandung http (URL luar) atau hanya nama file (storage lokal)
+    const userAvatar = auth.user.image 
+        ? (auth.user.image.startsWith('http') 
+            ? auth.user.image 
+            : `/storage/users/${auth.user.image}`) 
+        : `https://ui-avatars.com/api/?name=${encodeURIComponent(auth.user.name)}&background=6366f1&color=fff`;
+
     return (
         <div
             className={`
@@ -51,14 +59,15 @@ export default function Sidebar({ sidebarOpen }) {
             `}
             >
                 <img
-                    src={
-                        auth.user.avatar ||
-                        `https://ui-avatars.com/api/?name=${auth.user.name}&background=6366f1&color=fff`
-                    }
-                    className={`rounded-full ring-2 ring-slate-100 dark:ring-slate-800 ${
+                    src={userAvatar}
+                    className={`rounded-full ring-2 ring-slate-100 dark:ring-slate-800 object-cover ${
                         sidebarOpen ? "w-10 h-10" : "w-8 h-8"
                     }`}
                     alt={auth.user.name}
+                    /* Menangani error jika file fisik tidak ditemukan di storage */
+                    onError={(e) => {
+                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(auth.user.name)}&background=6366f1&color=fff`;
+                    }}
                 />
                 {sidebarOpen && (
                     <div className="flex-1 min-w-0">
@@ -102,7 +111,7 @@ export default function Sidebar({ sidebarOpen }) {
                                 {section.details.map((detail, idx) => {
                                     if (!detail.permissions) return null;
 
-                                    if (detail.hasOwnProperty("subdetails")) {
+                                    if (Object.prototype.hasOwnProperty.call(detail, "subdetails")) {
                                         return (
                                             <LinkItemDropdown
                                                 key={idx}

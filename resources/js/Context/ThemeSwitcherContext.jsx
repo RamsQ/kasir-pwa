@@ -9,7 +9,8 @@ export const ThemeSwitcherProvider = ({ children }) => {
     )
 
     useEffect(() => {
-        const root = document.documentElement;
+        const root = document.documentElement; // Ini merujuk ke tag <html>
+        
         const toggleTransition = () => {
             root.classList.add('no-transition');
             setTimeout(() => {
@@ -19,10 +20,12 @@ export const ThemeSwitcherProvider = ({ children }) => {
 
         toggleTransition();
 
-        if (darkMode)
-            document.body.classList.add('dark');
-        else
-            document.body.classList.remove('dark');
+        // PERBAIKAN: Gunakan root (<html>) bukan document.body
+        if (darkMode) {
+            root.classList.add('dark');
+        } else {
+            root.classList.remove('dark');
+        }
 
         // set darkMode in localstorage
         localStorage.setItem('darkMode', darkMode);

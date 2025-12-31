@@ -19,6 +19,7 @@ class Transaction extends Model
     protected $fillable = [
         'cashier_id',
         'customer_id',
+        'shift_id', // <--- [BARU] Tambahkan ini agar shift_id bisa disimpan
         'invoice',
         'cash',
         'change',
@@ -29,6 +30,16 @@ class Transaction extends Model
         'payment_reference',
         'payment_url',
     ];
+
+    /**
+     * shift
+     *
+     * @return void
+     */
+    public function shift()
+    {
+        return $this->belongsTo(Shift::class);
+    }
 
     /**
      * details
@@ -81,4 +92,4 @@ class Transaction extends Model
             get: fn ($value) => Carbon::parse($value)->format('d-M-Y H:i:s'),
         );
     }
-}
+} 
