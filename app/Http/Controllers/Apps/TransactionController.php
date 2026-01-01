@@ -13,6 +13,8 @@ use App\Models\ProductUnit;
 use App\Models\ReceiptSetting;
 use App\Models\Transaction;
 use App\Models\Shift; 
+use App\Models\Hold; 
+use App\Models\StockOpname; // Import model StockOpname
 use App\Services\Payments\PaymentGatewayManager;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -33,10 +35,15 @@ class TransactionController extends Controller
             ->where('status', 'open')
             ->first();
 
-        // Load relasi 'unit' pada Cart tetap menggunakan nama 'unit' karena di model Cart mungkin belum diubah
+        // Load relasi 'unit' pada Cart
         $carts = Cart::with(['product.units', 'product.bundle_items', 'unit'])
             ->where('cashier_id', $userId)
             ->active()
+            ->latest()
+            ->get();
+
+        // --- AMBIL DAFTAR TRANSAKSI DITUNDA (HOLDS) ---
+        $holds = Hold::where('user_id', $userId)
             ->latest()
             ->get();
 
@@ -86,6 +93,7 @@ class TransactionController extends Controller
             'carts'                 => $carts,
             'carts_total'           => (int) $carts_total,
             'heldCarts'             => $heldCarts,
+            'holds'                 => $holds,
             'customers'             => $customers,
             'products'              => $products,
             'categories'            => $categories,
@@ -95,6 +103,57 @@ class TransactionController extends Controller
             'paymentSetting'        => $paymentSetting,
             'activeShift'           => $activeShift,
         ]);
+    }
+
+    // --- LOGIKA SIMPAN TRANSAKSI SEMENTARA (AUTO SAVE) ---
+    public function holdCart(Request $request)
+    {
+        $request->validate([
+            'ref_number' => 'required|string',
+            'cart_items' => 'required|array',
+            'total'      => 'required|numeric'
+        ]);
+
+        Hold::create([
+            'ref_number' => $request->ref_number,
+            'cart_data'  => $request->cart_items, 
+            'total'      => $request->total,
+            'user_id'    => auth()->id(),
+        ]);
+
+        Cart::where('cashier_id', auth()->id())->delete();
+
+        return back()->with('success', 'Transaksi berhasil ditunda.');
+    }
+
+    // --- LOGIKA RESTORE DATA KE KERANJANG AKTIF ---
+    public function resumeCart($holdId)
+    {
+        DB::transaction(function () use ($holdId) {
+            $hold = Hold::where('id', $holdId)->where('user_id', auth()->id())->firstOrFail();
+            
+            Cart::where('cashier_id', auth()->id())->delete();
+
+            foreach ($hold->cart_data as $item) {
+                Cart::create([
+                    'cashier_id'      => auth()->id(),
+                    'product_id'      => $item['product_id'],
+                    'product_unit_id' => $item['product_unit_id'] ?? null,
+                    'qty'             => $item['qty'],
+                    'price'           => $item['price'],
+                ]);
+            }
+
+            $hold->delete();
+        });
+
+        return back()->with('success', 'Antrean berhasil dikembalikan ke keranjang.');
+    }
+
+    public function clearHold($holdId)
+    {
+        Hold::where('id', $holdId)->where('user_id', auth()->id())->delete();
+        return back()->with('success', 'Antrean berhasil dihapus.');
     }
 
     public function searchProduct(Request $request)
@@ -229,11 +288,10 @@ class TransactionController extends Controller
                 'payment_status' => $isManualPayment ? 'paid' : 'pending',
             ]);
 
-            $carts = Cart::with(['product.units', 'product.bundle_items', 'unit'])->where('cashier_id', auth()->user()->id)->active()->get();
+            $carts = Cart::with(['product.units', 'product.bundle_items', 'unit'])->where('cashier_id', auth()->user()->id)->get();
             $discounts = Discount::active()->get();
 
             foreach ($carts as $cart) {
-                // LOGIKA PENGAMBILAN NAMA SATUAN (STRING)
                 $unitName = $cart->unit ? $cart->unit->unit_name : $cart->product->unit;
                 $unitPrice = $cart->unit ? $cart->unit->sell_price : $cart->product->sell_price;
                 
@@ -252,11 +310,10 @@ class TransactionController extends Controller
                     'product_id'      => $cart->product_id,
                     'qty'             => $cart->qty,
                     'price'           => $finalPrice, 
-                    'unit'            => $unitName ?? 'Pcs', // Simpan teks nama satuan permanen
+                    'unit'            => $unitName ?? 'Pcs',
                     'product_unit_id' => $cart->product_unit_id,
                 ]);
 
-                // Hitung profit
                 $current_total_buy_price = 0;
                 if ($cart->product->type === 'bundle') {
                     foreach ($cart->product->bundle_items as $item) {
@@ -269,39 +326,24 @@ class TransactionController extends Controller
                         }
                         $itemCost = $qtyInRecipe * $bundleConversion * $item->buy_price;
                         $current_total_buy_price += $itemCost;
+
+                        $totalToDecrement = $cart->qty * $qtyInRecipe * $bundleConversion;
+                        DB::table('products')->where('id', $item->id)->decrement('stock', $totalToDecrement);
                     }
                     $current_total_buy_price = $current_total_buy_price * $cart->qty;
                 } else {
                     $conversionValue = $cart->unit ? $cart->unit->conversion : 1;
                     $totalBaseQty = $cart->qty * $conversionValue;
                     $current_total_buy_price = $cart->product->buy_price * $totalBaseQty;
+                    $cart->product->decrement('stock', $totalBaseQty);
                 }
 
                 $transaction->profits()->create([
                     'total' => $finalPrice - $current_total_buy_price,
                 ]);
-
-                // Update Stok
-                if ($cart->product->type === 'bundle') {
-                    foreach ($cart->product->bundle_items as $item) {
-                        $qtyPerRecipe = $item->pivot->qty;
-                        $bundleItemUnitId = $item->pivot->product_unit_id;
-                        $bundleConversion = 1;
-                        if($bundleItemUnitId) {
-                            $unitData = ProductUnit::find($bundleItemUnitId);
-                            $bundleConversion = $unitData ? $unitData->conversion : 1;
-                        }
-                        $totalToDecrement = $cart->qty * $qtyPerRecipe * $bundleConversion;
-                        DB::table('products')->where('id', $item->id)->decrement('stock', $totalToDecrement);
-                    }
-                } else {
-                    $conversionValue = $cart->unit ? $cart->unit->conversion : 1;
-                    $totalBaseQty = $cart->qty * $conversionValue;
-                    $cart->product->decrement('stock', $totalBaseQty);
-                }
             }
 
-            Cart::where('cashier_id', auth()->user()->id)->active()->delete();
+            Cart::where('cashier_id', auth()->user()->id)->delete();
             return $transaction;
         });
 
@@ -323,17 +365,10 @@ class TransactionController extends Controller
 
     public function print($invoice)
     {
-        // --- PERUBAHAN DISINI: details.product_unit ---
         $transaction = Transaction::with(['details.product.bundle_items.units', 'details.product_unit', 'cashier', 'customer'])
             ->where('invoice', $invoice)->firstOrFail();
-            
         $receiptSetting = ReceiptSetting::first();
-        
-        return Inertia::render('Dashboard/Transactions/Print', [
-            'transaction' => $transaction, 
-            'receiptSetting' => $receiptSetting, 
-            'isPublic' => false
-        ]);
+        return Inertia::render('Dashboard/Transactions/Print', ['transaction' => $transaction, 'receiptSetting' => $receiptSetting, 'isPublic' => false]);
     }
 
     public function refund(Request $request, Transaction $transaction)
@@ -345,11 +380,8 @@ class TransactionController extends Controller
         DB::transaction(function () use ($transaction) {
             foreach ($transaction->details as $detail) {
                 $product = Product::with('bundle_items')->find($detail->product_id);
-                
-                // --- PERUBAHAN DISINI: detail->product_unit ---
                 $conversion = $detail->product_unit ? $detail->product_unit->conversion : 1;
                 $totalToIncrement = $detail->qty * $conversion;
-
                 if ($product) {
                     if ($product->type === 'bundle') {
                         foreach ($product->bundle_items as $item) {
@@ -384,20 +416,46 @@ class TransactionController extends Controller
         return Inertia::render('Dashboard/Transactions/History', ['transactions' => $transactions, 'filters' => $request->all(['invoice', 'start_date', 'end_date'])]);
     }
 
+    /**
+     * Reset seluruh data transaksi, shift, dan stock opname tanpa menyentuh data master produk.
+     */
     public function destroyAll(Request $request)
     {
-        if (!auth()->user()->hasRole('super-admin')) return back()->with('error', 'Bukan Admin!');
+        if (!auth()->user()->hasRole('super-admin')) return back()->with('error', 'Akses ditolak! Hanya Super Admin yang dapat mereset data.');
+        
         $request->validate(['password' => 'required']);
-        if (!Hash::check($request->password, auth()->user()->password)) return back()->with('error', 'Salah password!');
-        
+        if (!Hash::check($request->password, auth()->user()->password)) return back()->with('error', 'Password konfirmasi salah!');
+
+        // 
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        DB::table('profits')->truncate(); 
-        DB::table('transaction_details')->truncate(); 
-        DB::table('transactions')->truncate(); 
-        DB::table('carts')->truncate();
-        DB::table('shifts')->truncate(); 
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-        
-        return back()->with('success', 'Seluruh data transaksi dan laporan shift berhasil direset!');
+
+        try {
+            DB::beginTransaction();
+
+            // 1. Hapus Riwayat Keuangan & Transaksi
+            DB::table('profits')->truncate(); 
+            DB::table('transaction_details')->truncate(); 
+            DB::table('transactions')->truncate(); 
+
+            // 2. Hapus Data Keranjang & Antrean Tunda
+            DB::table('carts')->truncate();
+            DB::table('holds')->truncate();
+
+            // 3. Hapus Laporan Shift
+            DB::table('shifts')->truncate(); 
+
+            // 4. Hapus Riwayat Stock Opname (Sesuai Permintaan)
+            DB::table('stock_opnames')->truncate();
+
+            DB::commit();
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+            return back()->with('success', 'Seluruh riwayat transaksi, shift, dan stock opname berhasil dibersihkan. Data produk tetap aman.');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            return back()->with('error', 'Gagal mereset data: ' . $e->getMessage());
+        }
     }
 }

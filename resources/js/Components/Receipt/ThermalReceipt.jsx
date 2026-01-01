@@ -18,14 +18,14 @@ export default function ThermalReceipt({
     storePhone,
     footerMessage,
     storeLogo,
-    qrisImage, // URL gambar QRIS dari folder storage
+    qrisImage,
+    isTemporary = false, // Prop baru untuk identifikasi tagihan sementara
 }) {
     if (!transaction) return null;
 
     const discount = Number(transaction.discount || 0);
     const subtotal = Number(transaction.grand_total) + discount;
 
-    // Logika agar gambar muncul baik saat lunas (qris) maupun saat penagihan (tagihan)
     const showQR = (transaction.payment_method === 'qris' || transaction.payment_method === 'tagihan') && qrisImage;
 
     return (
@@ -65,10 +65,9 @@ export default function ThermalReceipt({
                     const originalUnitPrice = item.product?.sell_price || unitPriceAtTransaction;
                     const hasProductDiscount = originalUnitPrice > unitPriceAtTransaction;
                     
-                    // --- FIX LOGIC SATUAN: AMBIL TEKS SAJA (Sachet/Box/Pcs) ---
                     let unitDisplay = "Pcs";
                     if (typeof item.unit === 'string' && item.unit !== "") {
-                        unitDisplay = item.unit; // Mengambil "Sachet" dari database
+                        unitDisplay = item.unit;
                     } else if (item.unit && typeof item.unit === 'object') {
                         unitDisplay = item.unit.unit_name || "Pcs";
                     } else if (item.unit_name) {
@@ -78,11 +77,10 @@ export default function ThermalReceipt({
                     return (
                         <div key={index} className="mb-2">
                             <div className="font-bold mb-0.5 uppercase">
-                                {item.product?.title}
+                                {item.product?.title || item.product_title}
                             </div>
                             <div className="flex justify-between">
                                 <span>
-                                    {/* Pastikan unitDisplay dipaksa jadi String agar tidak objek */}
                                     {item.qty} {String(unitDisplay)} x {formatPrice(unitPriceAtTransaction)}
                                     {hasProductDiscount && (
                                         <span className="ml-1 line-through text-[9px] opacity-60 italic">
@@ -93,19 +91,15 @@ export default function ThermalReceipt({
                                 <span>{formatPrice(item.price)}</span>
                             </div>
                             
-                            {/* RINCIAN BUNDLING */}
                             {item.product?.type === 'bundle' && item.product?.bundle_items?.length > 0 && (
                                 <div className="mt-1 ml-2 pl-2 border-l border-black">
                                     {item.product.bundle_items.map((bundleItem, idx) => {
                                         const selectedUnitId = bundleItem.pivot?.product_unit_id;
                                         const bundleUnitName = bundleItem.units?.find(u => u.id === selectedUnitId)?.unit_name || "PCS";
-
                                         return (
                                             <div key={idx} className="text-[10px] text-slate-700 flex justify-between italic">
                                                 <span>- {bundleItem.title}</span>
-                                                <span>
-                                                    {bundleItem.pivot?.qty * item.qty} {bundleUnitName}
-                                                </span>
+                                                <span>{bundleItem.pivot?.qty * item.qty} {bundleUnitName}</span>
                                             </div>
                                         );
                                     })}
@@ -116,18 +110,31 @@ export default function ThermalReceipt({
                 })}
             </div>
 
+            {/* STATUS PEMBAYARAN */}
+            <div className="text-center my-4">
+                {isTemporary ? (
+                    <div className="border-2 border-dashed border-black p-2">
+                        <p className="text-sm font-bold uppercase tracking-tighter">*** TAGIHAN SEMENTARA ***</p>
+                        <p className="text-[9px] italic">Bukan Bukti Pembayaran Sah</p>
+                    </div>
+                ) : (
+                    <div className="text-lg font-black uppercase tracking-widest border-y-2 border-black py-1">
+                        *** LUNAS ***
+                    </div>
+                )}
+            </div>
+
             {/* TOTAL & PEMBAYARAN */}
             <div className="mb-4 text-right">
-                <div className="flex justify-between font-bold text-sm mb-1 border-t border-black border-dashed pt-2">
+                <div className="flex justify-between font-bold text-sm mb-1 pt-2">
                     <span>TOTAL</span>
                     <span>{formatPrice(transaction.grand_total)}</span>
                 </div>
-                
                 <div className="flex justify-between text-[10px] font-bold mt-1 uppercase">
                     <span>Metode</span>
                     <span>
-                        {transaction.payment_method === 'qris' ? 'QRIS (LUNAS)' : 
-                         transaction.payment_method === 'tagihan' ? 'TAGIHAN QRIS' : 
+                        {transaction.payment_method === 'qris' ? 'QRIS' : 
+                         transaction.payment_method === 'tagihan' ? 'TAGIHAN' : 
                          transaction.payment_method}
                     </span>
                 </div>
@@ -167,6 +174,7 @@ export function ThermalReceipt58mm({
     footerMessage,
     storeLogo,
     qrisImage,
+    isTemporary = false,
 }) {
     if (!transaction) return null;
 
@@ -174,7 +182,6 @@ export function ThermalReceipt58mm({
 
     return (
         <div className="bg-white text-black font-mono text-[10px] leading-tight w-[58mm] mx-auto p-1 pb-6 receipt-content">
-             {/* HEADER */}
              <div className="text-center mb-3 border-b border-black border-dashed pb-2 flex flex-col items-center">
                  {storeLogo && (
                     <div className="mb-2">
@@ -185,18 +192,14 @@ export function ThermalReceipt58mm({
                 {storePhone && <p>{storePhone}</p>}
             </div>
 
-             {/* INFO */}
-             <div className="mb-2 border-b border-black border-dashed pb-1">
+            <div className="mb-2 border-b border-black border-dashed pb-1">
                 <p>No: {transaction.invoice}</p>
                 <p>{new Date(transaction.created_at).toLocaleDateString('id-ID')} {new Date(transaction.created_at).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})}</p>
             </div>
 
-            {/* ITEM BELANJA */}
             <div className="mb-2 border-b border-black border-dashed pb-1">
                 {transaction.details?.map((item, index) => {
                     const unitPrice = item.price / item.qty;
-                    
-                    // --- FIX LOGIC SATUAN 58MM ---
                     let unitLabel = "Pcs";
                     if (typeof item.unit === 'string' && item.unit !== "") {
                         unitLabel = item.unit; 
@@ -206,51 +209,32 @@ export function ThermalReceipt58mm({
 
                     return (
                         <div key={index} className="mb-2">
-                            <div className="uppercase font-bold">
-                                {item.product?.title}
-                            </div>
+                            <div className="uppercase font-bold">{item.product?.title || item.product_title}</div>
                             <div className="flex justify-between">
                                 <span>{item.qty}{String(unitLabel)} x {formatPrice(unitPrice)}</span>
                                 <span>{formatPrice(item.price)}</span>
                             </div>
-                            {/* RINCIAN BUNDLING */}
-                            {item.product?.type === 'bundle' && item.product?.bundle_items?.length > 0 && (
-                                <div className="mt-0.5 ml-1 pl-1 border-l border-black opacity-80">
-                                    {item.product.bundle_items.map((bundleItem, idx) => {
-                                        const selectedUnitId = bundleItem.pivot?.product_unit_id;
-                                        const bundleUnitName = bundleItem.units?.find(u => u.id === selectedUnitId)?.unit_name || "PCS";
-                                        
-                                        return (
-                                            <div key={idx} className="text-[8px] flex justify-between italic">
-                                                <span>- {bundleItem.title}</span>
-                                                <span>x{bundleItem.pivot?.qty * item.qty} {bundleUnitName}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
                         </div>
                     );
                 })}
             </div>
 
-             {/* TOTAL */}
+            {/* STATUS PEMBAYARAN 58MM */}
+            <div className="text-center my-2">
+                {isTemporary ? (
+                    <p className="text-[9px] font-bold border border-black p-1 uppercase">*** TAGIHAN SEMENTARA ***</p>
+                ) : (
+                    <p className="text-[11px] font-black border-y border-black py-0.5 uppercase tracking-widest">*** LUNAS ***</p>
+                )}
+            </div>
+
              <div className="mb-3 text-right">
-                <div className="flex justify-between font-bold mb-1 border-t border-black border-dashed pt-1 text-[11px]">
+                <div className="flex justify-between font-bold mb-1 pt-1 text-[11px]">
                     <span>TOTAL</span>
                     <span>{formatPrice(transaction.grand_total)}</span>
                 </div>
-                <div className="flex justify-between uppercase font-bold text-[9px]">
-                    <span>Metode</span>
-                    <span>
-                        {transaction.payment_method === 'qris' ? 'QRIS' : 
-                         transaction.payment_method === 'tagihan' ? 'TAGIHAN' : 
-                         transaction.payment_method}
-                    </span>
-                </div>
             </div>
 
-            {/* QRIS DISPLAY */}
             {showQR && (
                 <div className="text-center my-2 border-t border-black border-dashed pt-2 flex flex-col items-center justify-center">
                     <p className="text-[8px] font-bold mb-1 uppercase tracking-tighter">Scan QRIS</p>
@@ -266,7 +250,6 @@ export function ThermalReceipt58mm({
                 </div>
             )}
 
-             {/* FOOTER */}
              <div className="text-center mt-4 border-t border-black border-dotted pt-2">
                 <p className="uppercase font-bold text-[9px]">{footerMessage}</p>
             </div>

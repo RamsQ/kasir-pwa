@@ -14,7 +14,7 @@ use Inertia\Response;
 class AuthenticatedSessionController extends Controller
 {
     /**
-     * Display the login view.
+     * Menampilkan halaman login.
      */
     public function create(): Response
     {
@@ -25,7 +25,7 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
-     * Handle an incoming authentication request.
+     * Menangani permintaan autentikasi masuk.
      */
     public function store(LoginRequest $request): RedirectResponse
     {
@@ -33,25 +33,22 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        // --- MULAI PERBAIKAN: CEK ROLE USER ---
+        // --- CEK ROLE USER SETELAH LOGIN ---
         
         /** @var \App\Models\User $user */
         $user = $request->user();
 
         // Jika user memiliki role 'cashier', langsung arahkan ke halaman POS/Transaksi
-        // Pastikan nama role di database Anda adalah 'cashier' (huruf kecil)
         if ($user->hasRole('cashier')) {
             return redirect()->route('transactions.index');
         }
 
-        // --- SELESAI PERBAIKAN ---
-
-        // Jika bukan kasir (misal: admin), arahkan ke Dashboard
+        // Jika bukan kasir (misal: admin), arahkan ke Dashboard atau tujuan awal
         return redirect()->intended(route('dashboard', absolute: false));
     }
 
     /**
-     * Destroy an authenticated session.
+     * Menghancurkan sesi autentikasi (Logout).
      */
     public function destroy(Request $request): RedirectResponse
     {
@@ -61,6 +58,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        // --- PERUBAHAN DISINI: DIARAHKAN KE HALAMAN LOGIN ---
+        return redirect()->route('login');
     }
 }

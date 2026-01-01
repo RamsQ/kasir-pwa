@@ -15,7 +15,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ShiftController; 
 use App\Http\Controllers\Apps\StockOpnameController;
-use App\Http\Controllers\Apps\ExpiredProductController; // Import Controller Expired
+use App\Http\Controllers\Apps\ExpiredProductController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -79,11 +79,17 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::post('/transactions/store', [TransactionController::class, 'store'])->name('transactions.store');
         Route::get('/transactions/history', [TransactionController::class, 'history'])->name('transactions.history');
         
-        // POS Features
-        Route::post('/transactions/hold', [TransactionController::class, 'holdCart'])->name('transactions.hold');
-        Route::post('/transactions/{holdId}/resume', [TransactionController::class, 'resumeCart'])->name('transactions.resume');
-        Route::delete('/transactions/{holdId}/clearHold', [TransactionController::class, 'clearHold'])->name('transactions.clearHold');
-        Route::get('/transactions/held', [TransactionController::class, 'getHeldCarts'])->name('transactions.held');
+        // --- UPDATE FITUR HOLD TRANSACTION ---
+        // Post ke holdCart (simpan)
+        Route::post('/holds', [TransactionController::class, 'holdCart'])->name('holds.store');
+        
+        // Post ke resume (kembalikan ke keranjang aktif)
+        Route::post('/holds/{holdId}/resume', [TransactionController::class, 'resumeCart'])->name('transactions.resume');
+        
+        // Delete hold (hapus antrean)
+        Route::delete('/holds/{id}', [TransactionController::class, 'clearHold'])->name('holds.destroy');
+        // -------------------------------------
+
         Route::get('/transactions/{invoice}/print', [TransactionController::class, 'print'])->name('transactions.print');
         Route::post('/transactions/{transaction}/refund', [TransactionController::class, 'refund'])->name('transactions.refund');
         
@@ -124,7 +130,6 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::get('/reports/products/export', [ProductReportController::class, 'export'])->name('reports.products.export');
         Route::get('/reports/shifts', [ShiftController::class, 'index'])->name('reports.shifts.index');
 
-        // --- UPDATE: LAPORAN PRODUK EXPIRED DENGAN EXPORT ---
         Route::get('/reports/expired', [ExpiredProductController::class, 'index'])->name('reports.expired.index');
         Route::get('/reports/expired/pdf', [ExpiredProductController::class, 'exportPdf'])->name('reports.expired.pdf');
         Route::get('/reports/expired/excel', [ExpiredProductController::class, 'exportExcel'])->name('reports.expired.excel');
