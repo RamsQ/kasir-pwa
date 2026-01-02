@@ -8,7 +8,7 @@ import toast from "react-hot-toast";
 import {
     IconPackage, IconDeviceFloppy, IconArrowLeft, IconPhoto,
     IconBarcode, IconCurrencyDollar, IconCalendar, IconPlus,
-    IconTrash, IconScale, IconX, IconAlertCircle // IconDizzy diganti ke IconAlertCircle
+    IconTrash, IconScale, IconX, IconAlertCircle 
 } from "@tabler/icons-react";
 
 export default function Create({ categories, products }) {
@@ -23,7 +23,7 @@ export default function Create({ categories, products }) {
         buy_price: "",
         sell_price: "",
         stock: "", 
-        unit: "Pcs", // State Satuan Dasar Manual
+        unit: "Pcs", 
         expired_date: "",
         type: "single",
         bundle_items: [{ item_id: "", qty: 1, product_unit_id: "" }],
@@ -46,15 +46,25 @@ export default function Create({ categories, products }) {
         }
     };
 
-    // --- LOGIC AUTO CALCULATE MODAL (BUNDLING) ---
+    // --- FIX LOGIC AUTO CALCULATE MODAL (BUNDLING DENGAN MULTI-SATUAN) ---
     const calculateTotalModal = (items) => {
         let totalModal = 0;
         items.forEach(item => {
             const originalProduct = products.find(p => p.id == item.item_id);
             if (originalProduct) {
-                totalModal += parseFloat(originalProduct.buy_price) * parseFloat(item.qty || 0);
+                // Cari data satuan untuk mendapatkan konversi
+                let conversion = 1;
+                if (item.product_unit_id) {
+                    const unitData = originalProduct.units?.find(u => u.id == item.product_unit_id);
+                    conversion = unitData ? parseFloat(unitData.conversion) : 1;
+                }
+                
+                // RUMUS: Modal Dasar x Qty Input x Konversi Satuan
+                // Contoh Telur: 500 x 1 (kg) x 8 (isi) = 4.000
+                totalModal += parseFloat(originalProduct.buy_price) * parseFloat(item.qty || 0) * conversion;
             }
         });
+
         setData(prevData => ({
             ...prevData,
             buy_price: totalModal,
@@ -76,9 +86,12 @@ export default function Create({ categories, products }) {
     const handleItemChange = (index, field, value) => {
         const newList = [...data.bundle_items];
         newList[index][field] = value;
+        
+        // Reset unit jika produk di baris tersebut diganti
         if (field === "item_id") {
             newList[index]["product_unit_id"] = "";
         }
+        
         calculateTotalModal(newList);
     };
 
@@ -121,7 +134,6 @@ export default function Create({ categories, products }) {
 
             <form onSubmit={submit}>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Left Column: Image & Type */}
                     <div className="lg:col-span-1 space-y-6">
                         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
                             <h3 className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mb-4 flex items-center gap-2 tracking-widest">
@@ -155,9 +167,7 @@ export default function Create({ categories, products }) {
                         </div>
                     </div>
 
-                    {/* Right Column: Details */}
                     <div className="lg:col-span-2 space-y-6">
-                        {/* Basic Info */}
                         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
                             <h3 className="text-[10px] font-black uppercase text-slate-400 mb-4 flex items-center gap-2 tracking-widest"><IconBarcode size={18} /> Informasi Dasar</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -166,33 +176,21 @@ export default function Create({ categories, products }) {
                                 </div>
                                 <Input type="text" label="Barcode / SKU" value={data.barcode} onChange={(e) => setData("barcode", e.target.value)} errors={errors.barcode} placeholder="Scan atau ketik SKU..." />
                                 <Input type="text" label="Nama Produk" value={data.title} onChange={(e) => setData("title", e.target.value)} errors={errors.title} placeholder="Contoh: Indomie Goreng" />
-                                
-                                {/* INPUT SATUAN MANUAL */}
-                                <Input 
-                                    type="text" 
-                                    label="Satuan Dasar" 
-                                    value={data.unit} 
-                                    onChange={(e) => setData("unit", e.target.value)} 
-                                    errors={errors.unit} 
-                                    placeholder="Misal: Pcs, Kg, Box"
-                                />
-
+                                <Input type="text" label="Satuan Dasar" value={data.unit} onChange={(e) => setData("unit", e.target.value)} errors={errors.unit} placeholder="Misal: Pcs, Kg, Box" />
                                 <div className="md:col-span-2"><Textarea label="Deskripsi" onChange={(e) => setData("description", e.target.value)} value={data.description} rows={3} placeholder="Penjelasan singkat produk..." /></div>
                             </div>
                         </div>
 
-                        {/* Price & Stock */}
                         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
                             <h3 className="text-[10px] font-black uppercase text-slate-400 mb-4 flex items-center gap-2 tracking-widest"><IconCurrencyDollar size={18} /> Harga & Stok Dasar</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <Input type="number" label={data.type === 'bundle' ? "Total Modal (Auto)" : "Harga Beli"} value={data.buy_price} onChange={(e) => setData("buy_price", e.target.value)} readOnly={data.type === 'bundle'} className={data.type === 'bundle' ? 'bg-slate-50 dark:bg-slate-800 font-bold' : ''} />
+                                <Input type="number" label={data.type === 'bundle' ? "Total Modal (Auto)" : "Harga Beli"} value={data.buy_price} onChange={(e) => setData("buy_price", e.target.value)} readOnly={data.type === 'bundle'} className={data.type === 'bundle' ? 'bg-slate-50 dark:bg-slate-800 font-bold text-primary-600' : ''} />
                                 <Input type="number" label="Harga Jual" value={data.sell_price} onChange={(e) => setData("sell_price", e.target.value)} errors={errors.sell_price} />
                                 {data.type === "single" && <Input type="number" label="Stok Tersedia" value={data.stock} onChange={(e) => setData("stock", e.target.value)} errors={errors.stock} />}
                                 <Input type="date" label="Tanggal Kadaluarsa" value={data.expired_date} onChange={(e) => setData("expired_date", e.target.value)} />
                             </div>
                         </div>
 
-                        {/* Multi-Unit Section */}
                         {data.type === "single" && (
                             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
                                 <div className="flex justify-between items-center mb-4">
@@ -223,7 +221,6 @@ export default function Create({ categories, products }) {
                             </div>
                         )}
 
-                        {/* Bundle Composition Section */}
                         {data.type === "bundle" && (
                             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
                                 <h3 className="text-[10px] font-black uppercase text-slate-400 mb-4 flex items-center gap-2 tracking-widest"><IconPackage size={18} /> Komposisi Paket</h3>
@@ -239,11 +236,11 @@ export default function Create({ categories, products }) {
                                                         {products.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
                                                     </select>
                                                 </div>
-                                                <div className="w-36">
+                                                <div className="w-40">
                                                     <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Satuan Item</label>
                                                     <select className="w-full rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white text-sm focus:ring-primary-500" value={item.product_unit_id} onChange={(e) => handleItemChange(index, "product_unit_id", e.target.value)}>
                                                         <option value="">Dasar ({selectedProd?.unit || 'Pcs'})</option>
-                                                        {selectedProd?.units?.map(u => <option key={u.id} value={u.id}>{u.unit_name}</option>)}
+                                                        {selectedProd?.units?.map(u => <option key={u.id} value={u.id}>{u.unit_name} (Isi: {u.conversion})</option>)}
                                                     </select>
                                                 </div>
                                                 <div className="w-20">
@@ -261,7 +258,6 @@ export default function Create({ categories, products }) {
                             </div>
                         )}
 
-                        {/* Footer Actions */}
                         <div className="flex justify-end gap-3 pt-4">
                             <Link href={route("products.index")} className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-xs uppercase tracking-widest transition-all">
                                 Batal

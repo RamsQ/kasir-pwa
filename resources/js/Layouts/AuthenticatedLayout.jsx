@@ -4,20 +4,18 @@ import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import { Link, usePage } from '@inertiajs/react';
-import Notification from '@/Components/Dashboard/Notification'; // Menggunakan komponen Dashboard/Notification
-import Toast from '@/Components/Notification'; // Komponen Toast untuk pesan flash
+import Notification from '@/Components/Dashboard/Notification'; 
 
 export default function Authenticated({ user, header, children }) {
     const [showingNavigationDropdown, setShowingNavigationDropdown] = useState(false);
     
-    // Mengambil data props terbaru dari Inertia
+    // Props notifications dari HandleInertiaRequests.php
     const { notifications } = usePage().props;
 
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-slate-950 transition-colors duration-300">
-            {/* Listener untuk Toast Notification (Popup Berhasil/Gagal) */}
-            <Toast />
-
+            {/* Toast dihapus karena menyebabkan error Failed to resolve import */}
+            
             <nav className="bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 shadow-sm sticky top-0 z-40">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
@@ -37,20 +35,25 @@ export default function Authenticated({ user, header, children }) {
                                 <NavLink href={route('stock_opnames.index')} active={route().current('stock_opnames.*')}>
                                     Stock Opname
                                 </NavLink>
+                                
+                                {/* MENU: LAPORAN KEUANGAN */}
+                                <NavLink href={route('report.finance')} active={route().current('report.finance')}>
+                                    Laporan Keuangan
+                                </NavLink>
                             </div>
                         </div>
 
                         {/* Right Side Header (Desktop) */}
                         <div className="hidden sm:flex sm:items-center sm:ms-6 gap-2">
                             
-                            {/* --- KOMPONEN NOTIFIKASI UTAMA (LONCENG) --- */}
+                            {/* KOMPONEN NOTIFIKASI LONCENG */}
                             <Notification />
 
                             <div className="ms-3 relative">
                                 <Dropdown>
                                     <Dropdown.Trigger>
                                         <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-gray-500 dark:text-slate-400 bg-white dark:bg-slate-900 hover:text-gray-700 dark:hover:text-white focus:outline-none transition ease-in-out duration-150">
-                                            {/* Inisial Profil (Lingkaran Orange) */}
+                                            {/* Inisial Profil */}
                                             <div className="h-8 w-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold mr-2 uppercase shadow-sm">
                                                 {user.name.substring(0, 2)}
                                             </div>
@@ -77,7 +80,6 @@ export default function Authenticated({ user, header, children }) {
                         
                         {/* Mobile view Controls */}
                         <div className="-me-2 flex items-center sm:hidden gap-3">
-                            {/* Notifikasi tetap muncul di mobile */}
                             <Notification />
                             
                             <button 
@@ -101,6 +103,9 @@ export default function Authenticated({ user, header, children }) {
                         </ResponsiveNavLink>
                         <ResponsiveNavLink href={route('stock_opnames.index')} active={route().current('stock_opnames.*')}>
                             Stock Opname
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink href={route('report.finance')} active={route().current('report.finance')}>
+                            Laporan Keuangan
                         </ResponsiveNavLink>
                     </div>
 

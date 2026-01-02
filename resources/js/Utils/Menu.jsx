@@ -27,7 +27,8 @@ import {
     IconPackageExport,
     IconCash,
     IconAdjustmentsHorizontal,
-    IconAlertTriangle, // <--- [BARU] Ikon untuk Laporan Expired
+    IconAlertTriangle,
+    IconBusinessplan, // <--- [BARU] Ikon untuk Laporan Keuangan
 } from "@tabler/icons-react";
 import hasAnyPermission from "./Permission";
 import React from "react";
@@ -128,7 +129,6 @@ export default function Menu() {
                     icon: <IconPackageExport size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["reports-access"]),
                 },
-                // --- [BARU] MENU LAPORAN EXPIRED ---
                 {
                     title: "Kontrol Expired",
                     href: route("reports.expired.index"),
@@ -136,7 +136,15 @@ export default function Menu() {
                     icon: <IconAlertTriangle size={20} strokeWidth={1.5} className="text-red-500" />,
                     permissions: hasAnyPermission(["reports-access"]),
                 },
-                // ----------------------------------
+                // --- [BARU] MENU LAPORAN KEUANGAN (AKUNTANSI) ---
+                {
+                    title: "Laporan Keuangan",
+                    href: route("report.finance"),
+                    active: url.startsWith("/dashboard/report/finance"),
+                    icon: <IconBusinessplan size={20} strokeWidth={1.5} className="text-emerald-500" />,
+                    permissions: hasAnyPermission(["reports-access"]),
+                },
+                // ----------------------------------------------
                 {
                     title: "Laporan Keuntungan",
                     href: route("reports.profits.index"),

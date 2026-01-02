@@ -16,14 +16,15 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ShiftController; 
 use App\Http\Controllers\Apps\StockOpnameController;
 use App\Http\Controllers\Apps\ExpiredProductController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ExpenseController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 // =============================================================
-// RUTE PUBLIK (Bisa diakses tanpa login)
+// RUTE PUBLIK
 // =============================================================
-
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin'       => Route::has('login'),
@@ -35,11 +36,9 @@ Route::get('/', function () {
 
 Route::get('/share/invoice/{invoice}', [TransactionController::class, 'shareInvoice'])->name('transactions.share');
 
-
 // =============================================================
-// RUTE PRIVATE (Wajib Login)
+// RUTE PRIVATE (Dashboard)
 // =============================================================
-
 Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     
     // [0] DASHBOARD UTAMA
@@ -53,7 +52,7 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::get('/shifts/{shift}/print', [ShiftController::class, 'print'])->name('shifts.print');
     });
 
-    // [1] KHUSUS ADMIN/OWNER (Manajemen Sistem)
+    // [1] KHUSUS ADMIN/OWNER
     Route::group(['middleware' => ['permission:dashboard-access']], function () {
         Route::get('/permissions', [PermissionController::class, 'index'])->name('permissions.index');
         Route::resource('/roles', RoleController::class)->except(['create', 'edit', 'show']);
@@ -79,16 +78,13 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::post('/transactions/store', [TransactionController::class, 'store'])->name('transactions.store');
         Route::get('/transactions/history', [TransactionController::class, 'history'])->name('transactions.history');
         
-        // --- UPDATE FITUR HOLD TRANSACTION ---
-        // Post ke holdCart (simpan)
+        // --- FITUR KAS KELUAR (BARU) ---
+        Route::post('/transactions/expense', [TransactionController::class, 'storeExpense'])->name('transactions.expense');
+
+        // --- FITUR HOLD TRANSACTION ---
         Route::post('/holds', [TransactionController::class, 'holdCart'])->name('holds.store');
-        
-        // Post ke resume (kembalikan ke keranjang aktif)
         Route::post('/holds/{holdId}/resume', [TransactionController::class, 'resumeCart'])->name('transactions.resume');
-        
-        // Delete hold (hapus antrean)
         Route::delete('/holds/{id}', [TransactionController::class, 'clearHold'])->name('holds.destroy');
-        // -------------------------------------
 
         Route::get('/transactions/{invoice}/print', [TransactionController::class, 'print'])->name('transactions.print');
         Route::post('/transactions/{transaction}/refund', [TransactionController::class, 'refund'])->name('transactions.refund');
@@ -101,17 +97,15 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     // [3] MASTER DATA & INVENTORY
     Route::group(['middleware' => ['permission:products-access']], function () {
         Route::resource('categories', CategoryController::class)->middleware('permission:categories-access');
-        
         Route::get('/products/template', [ProductController::class, 'template'])->name('products.template');
         Route::post('/products/import', [ProductController::class, 'import'])->name('products.import');
         Route::resource('products', ProductController::class);
 
-        // --- STOCK OPNAME ---
+        // Stock Opname
         Route::group(['middleware' => ['permission:stock_opnames.index']], function () {
             Route::get('/stock-opnames', [StockOpnameController::class, 'index'])->name('stock_opnames.index');
             Route::post('/stock-opnames', [StockOpnameController::class, 'store'])->name('stock_opnames.store');
             Route::delete('/stock-opnames/{stock_opname}', [StockOpnameController::class, 'destroy'])->name('stock_opnames.destroy');
-            
             Route::get('/stock-opnames-export', [StockOpnameController::class, 'export'])->name('stock_opnames.export');
             Route::post('/stock-opnames-import', [StockOpnameController::class, 'import'])->name('stock_opnames.import');
         });
@@ -121,7 +115,7 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::post('/customers/store-ajax', [CustomerController::class, 'storeAjax'])->name('customers.storeAjax');
     Route::get('/customers/{customer}/history', [CustomerController::class, 'getHistory'])->name('customers.history');
 
-    // [4] REPORTS
+    // [4] REPORTS & FINANCE
     Route::group(['middleware' => ['permission:reports-access']], function () {
         Route::get('/reports/sales', [SalesReportController::class, 'index'])->name('reports.sales.index');
         Route::get('/reports/profits', [ProfitReportController::class, 'index'])->middleware('permission:profits-access')->name('reports.profits.index');
@@ -129,18 +123,23 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::get('/reports/products', [ProductReportController::class, 'index'])->name('reports.products.index');
         Route::get('/reports/products/export', [ProductReportController::class, 'export'])->name('reports.products.export');
         Route::get('/reports/shifts', [ShiftController::class, 'index'])->name('reports.shifts.index');
-
         Route::get('/reports/expired', [ExpiredProductController::class, 'index'])->name('reports.expired.index');
         Route::get('/reports/expired/pdf', [ExpiredProductController::class, 'exportPdf'])->name('reports.expired.pdf');
         Route::get('/reports/expired/excel', [ExpiredProductController::class, 'exportExcel'])->name('reports.expired.excel');
+
+        // Laporan Keuangan (Akuntansi)
+        Route::get('/report/finance', [ReportController::class, 'finance'])->name('report.finance');
     });
 
-    Route::post('/products/bulk-destroy', [\App\Http\Controllers\Apps\ProductController::class, 'bulkDestroy'])->name('products.bulk_destroy');
+    // [5] EXPENSES (PENGELUARAN UMUM/BESAR)
+    Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
 
-    // [5] USER PROFILE
+    // [6] USER PROFILE & LAINNYA
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::post('/products/bulk-destroy', [\App\Http\Controllers\Apps\ProductController::class, 'bulkDestroy'])->name('products.bulk_destroy');
+
 });
 
 require __DIR__ . '/auth.php';

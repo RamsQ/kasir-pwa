@@ -4,7 +4,8 @@ import {
     IconSearch, IconShoppingCart, IconX, IconTicket, IconGift,
     IconLayoutDashboard, IconCash, IconSun, IconMoon,
     IconPower, IconPackage, IconQrcode, IconPrinter, IconTag, IconScale,
-    IconDoorEnter, IconDoorExit, IconClockPause, IconRestore, IconTrash
+    IconDoorEnter, IconDoorExit, IconClockPause, IconRestore, IconTrash,
+    IconCashOff // <--- Icon Baru untuk Kas Keluar
 } from "@tabler/icons-react";
 import Swal from "sweetalert2";
 import ThermalReceipt from "@/Components/Receipt/ThermalReceipt";
@@ -27,14 +28,21 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [shiftToPrint, setShiftToPrint] = useState(null);
     
-    // --- STATE MODAL REVIEW & HOLD ---
+    // --- STATE MODAL REVIEW, HOLD, & KAS KELUAR ---
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [showModalHold, setShowModalHold] = useState(false);
+    const [showCashOut, setShowCashOut] = useState(false); // <--- State Modal Kas Keluar
     const [dataLaporan, setDataLaporan] = useState(null);
 
     // --- LOGIKA FORM SHIFT ---
     const { data: shiftData, setData: setShiftData, post: postShift, processing: processingShift } = useForm({
         starting_cash: 0,
+    });
+
+    // --- LOGIKA FORM KAS KELUAR ---
+    const { data: cashOutData, setData: setCashOutData, post: postCashOut, processing: processingCashOut, reset: resetCashOut, errors: cashOutErrors } = useForm({
+        name: '',
+        amount: '',
     });
 
     // --- LOGIKA TEMA ---
@@ -118,6 +126,19 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
         });
     };
 
+    // ACTION KAS KELUAR
+    const handleCashOut = (e) => {
+        e.preventDefault();
+        postCashOut(route('transactions.expense'), {
+            onSuccess: () => {
+                setShowCashOut(false);
+                resetCashOut();
+                Swal.fire("Berhasil", "Kas keluar berhasil dicatat.", "success");
+            },
+            onError: () => Swal.fire("Gagal", "Periksa kembali inputan Anda", "error")
+        });
+    };
+
     const addToCart = (product) => {
         if (!product?.id) return;
         router.post(route("transactions.addToCart"), { product_id: product.id, qty: 1 }, { 
@@ -138,7 +159,6 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
 
     const deleteCart = (id) => router.delete(route("transactions.destroyCart", id), { preserveScroll: true });
 
-    // --- LOGIKA HOLD TRANSACTION (WITH OPTIONAL NAME) ---
     const handleHoldTransaction = () => {
         if (carts.length === 0) return Swal.fire("Peringatan", "Keranjang kosong!", "warning");
         
@@ -152,9 +172,7 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
             confirmButtonColor: '#6366f1',
         }).then((result) => {
             if (result.isConfirmed) {
-                // Jika input kosong, gunakan timestamp otomatis
                 const autoRef = result.value ? result.value : `HOLD-${new Date().getTime()}`;
-
                 router.post(route('holds.store'), {
                     ref_number: autoRef,
                     cart_items: carts,
@@ -167,7 +185,6 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
         });
     };
 
-    // --- LOGIKA RESTORE KE KERANJANG AKTIF ---
     const handleResumeHold = (holdId) => {
         router.post(route('transactions.resume', holdId), {}, {
             onSuccess: () => {
@@ -234,6 +251,11 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
                     </div>
 
                     <div className="flex items-center gap-3">
+                        {/* TOMBOL KAS KELUAR */}
+                        <button onClick={() => setShowCashOut(true)} className="px-4 py-2 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-orange-200 transition-all active:scale-95 border border-orange-200 dark:border-orange-800/50">
+                            <IconCashOff size={16}/> Kas Keluar
+                        </button>
+
                         <button onClick={() => setShowModalHold(true)} className="relative p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-all active:scale-90">
                             <IconClockPause size={20} />
                             {holds?.length > 0 && (
@@ -402,6 +424,49 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
                 </div>
             )}
 
+            {/* MODAL KAS KELUAR (FITUR BARU) */}
+            {showCashOut && (
+                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-8 max-w-sm w-full border dark:border-slate-800 shadow-2xl animate-in zoom-in duration-300">
+                        <h3 className="text-lg font-black uppercase dark:text-white mb-2 flex items-center gap-2">
+                            <IconCashOff className="text-orange-500" /> Kas Keluar
+                        </h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-6">Mencatat uang keluar dari laci kasir</p>
+                        
+                        <form onSubmit={handleCashOut} className="space-y-5">
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Keterangan / Alasan</label>
+                                <input 
+                                    type="text" 
+                                    value={cashOutData.name} 
+                                    onChange={e => setCashOutData('name', e.target.value)}
+                                    className="w-full mt-1.5 rounded-xl border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm font-bold"
+                                    placeholder="Contoh: Beli Lampu / Galon"
+                                    required
+                                />
+                                {cashOutErrors.name && <p className="text-red-500 text-[10px] mt-1">{cashOutErrors.name}</p>}
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nominal (Rp)</label>
+                                <input 
+                                    type="number" 
+                                    value={cashOutData.amount} 
+                                    onChange={e => setCashOutData('amount', e.target.value)}
+                                    className="w-full mt-1.5 rounded-xl border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm font-bold"
+                                    placeholder="0"
+                                    required
+                                />
+                                {cashOutErrors.amount && <p className="text-red-500 text-[10px] mt-1">{cashOutErrors.amount}</p>}
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                                <button type="button" onClick={() => setShowCashOut(false)} className="py-4 text-slate-400 font-black text-[10px] uppercase hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all">Batal</button>
+                                <button type="submit" disabled={processingCashOut} className="py-4 bg-orange-500 hover:bg-orange-600 text-white font-black text-[10px] uppercase rounded-xl shadow-lg shadow-orange-500/20 active:scale-95 transition-all">Simpan</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             {/* MODAL HOLD ANTREAN */}
             {showModalHold && (
                 <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -431,7 +496,7 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
                 </div>
             )}
 
-            {/* AREA PRINT (Disesuaikan agar tidak ada kata LUNAS jika isTemporary) */}
+            {/* AREA PRINT */}
             <div id="print-area" className="hidden print:block">
                 {shiftToPrint ? (
                     <ShiftReceipt shift={shiftToPrint} storeName={receiptSetting?.store_name} />

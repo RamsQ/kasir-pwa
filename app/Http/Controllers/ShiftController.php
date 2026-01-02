@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Shift;
 use App\Models\Transaction;
 use App\Models\ReceiptSetting;
+use App\Models\Expense; // Import Model Expense
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -47,7 +48,7 @@ class ShiftController extends Controller
     }
 
     /**
-     * Fungsi Tutup Shift (Audit & Audit)
+     * Fungsi Tutup Shift (Audit & Perhitungan Selisih)
      */
     public function update(Request $request, Shift $shift)
     {
@@ -61,17 +62,24 @@ class ShiftController extends Controller
                             ->where('payment_status', 'paid')
                             ->sum('grand_total');
 
-        // 2. Hitung Penjualan QRIS selama shift ini
+        // 2. Hitung Penjualan QRIS selama shift ini (Opsional untuk info laporan)
         $totalQrisSales = Transaction::where('shift_id', $shift->id)
                             ->where('payment_method', 'qris') 
                             ->where('payment_status', 'paid')
                             ->sum('grand_total');
 
-        // 3. Kalkulasi ekspektasi saldo tunai (Modal Awal + Hasil Penjualan Tunai)
-        $expected = $shift->starting_cash + $totalCashSales;
+        // 3. BARU: Hitung Pengeluaran Kasir (Kas Keluar) selama shift ini
+        // Kita mengambil pengeluaran dari laci (Kas Kecil) yang dicatat sejak shift dibuka
+        $totalPettyCashOut = Expense::where('category', 'Kas Kecil')
+                            ->whereBetween('created_at', [$shift->opened_at, now()])
+                            ->sum('amount');
+
+        // 4. Kalkulasi ekspektasi saldo tunai (Modal Awal + Jual Tunai - Kas Keluar)
+        // Sesuai studi kasus: (100rb + 7rb) - 10rb = 97rb
+        $expected = ($shift->starting_cash + $totalCashSales) - $totalPettyCashOut;
         $actual = $request->total_cash_actual;
 
-        // 4. Update data shift ke database
+        // 5. Update data shift ke database
         $shift->update([
             'total_cash_expected' => $expected,
             'total_cash_actual'   => $actual,
@@ -80,16 +88,16 @@ class ShiftController extends Controller
             'closed_at'           => now(),
         ]);
 
-        // 5. Alirkan ke halaman khusus print/review laporan shift
+        // 6. Alirkan ke halaman khusus print/review laporan shift
         return redirect()->route('shifts.print', $shift->id);
     }
 
     /**
-     * Halaman Khusus Review & Cetak Laporan Shift (Mirip Print Invoice)
+     * Halaman Khusus Review & Cetak Laporan Shift
      */
     public function print(Shift $shift)
     {
-        // Hitung ulang data untuk tampilan laporan
+        // Hitung ulang data untuk tampilan laporan agar rinciannya lengkap
         $totalCashSales = Transaction::where('shift_id', $shift->id)
             ->where('payment_method', 'cash')
             ->where('payment_status', 'paid')
@@ -100,9 +108,16 @@ class ShiftController extends Controller
             ->where('payment_status', 'paid')
             ->sum('grand_total');
 
+        // Ambil rincian pengeluaran kasir untuk ditampilkan di struk shift
+        $pettyCashOut = Expense::where('category', 'Kas Kecil')
+            ->whereBetween('created_at', [$shift->opened_at, $shift->closed_at ?? now()])
+            ->get();
+
         $shift->load('user');
         $shift->total_qris_sales = $totalQrisSales;
         $shift->total_cash_sales = $totalCashSales;
+        $shift->petty_cash_out = $pettyCashOut->sum('amount');
+        $shift->expense_details = $pettyCashOut; // Kirim rincian (beli lampu, dll) ke UI
 
         return Inertia::render('Dashboard/Shifts/Print', [
             'shift'          => $shift,

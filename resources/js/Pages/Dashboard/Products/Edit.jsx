@@ -46,12 +46,6 @@ export default function Edit({ categories, product, products }) {
     });
 
     const [selectedCategory, setSelectedCategory] = useState(null);
-    
-    /**
-     * PERBAIKAN UTAMA:
-     * Langsung gunakan product.image karena Model sudah memberikan URL lengkap.
-     * Jangan gunakan fungsi getProductImageUrl lagi untuk menghindari URL dobel.
-     */
     const [imagePreview, setImagePreview] = useState(product.image || null);
 
     useEffect(() => {
@@ -73,13 +67,26 @@ export default function Edit({ categories, product, products }) {
         }
     };
 
+    // --- FIX LOGIC AUTO CALCULATE MODAL (BUNDLING DENGAN MULTI-SATUAN) ---
     const calculateTotalModal = (items) => {
         if (data.type !== 'bundle') return;
         let totalModal = 0;
+        
         items.forEach(item => {
             const originalProduct = products.find(p => p.id == item.item_id);
-            if (originalProduct) totalModal += parseFloat(originalProduct.buy_price) * parseFloat(item.qty || 0);
+            if (originalProduct) {
+                // Cari konversi satuan item dalam resep
+                let conversion = 1;
+                if (item.product_unit_id) {
+                    const unitData = originalProduct.units?.find(u => u.id == item.product_unit_id);
+                    conversion = unitData ? parseFloat(unitData.conversion) : 1;
+                }
+                
+                // Rumus: Modal Dasar * Qty * Konversi Satuan
+                totalModal += parseFloat(originalProduct.buy_price) * parseFloat(item.qty || 0) * conversion;
+            }
         });
+        
         setData(prevData => ({ ...prevData, buy_price: totalModal, bundle_items: items }));
     };
 
@@ -96,7 +103,10 @@ export default function Edit({ categories, product, products }) {
     const handleItemChange = (index, field, value) => {
         const list = [...data.bundle_items];
         list[index][field] = value;
+        
+        // Reset unit jika produk di baris tersebut diganti
         if (field === "item_id") list[index]["product_unit_id"] = "";
+        
         data.type === 'bundle' ? calculateTotalModal(list) : setData("bundle_items", list);
     };
 
@@ -110,6 +120,7 @@ export default function Edit({ categories, product, products }) {
 
     const submit = (e) => {
         e.preventDefault();
+        // Gunakan post karena Laravel memerlukan POST + _method: PUT untuk upload file
         post(route("products.update", product.id), {
             onSuccess: () => toast.success("Produk berhasil diperbarui"),
             onError: () => toast.error("Gagal memperbarui produk"),
@@ -172,14 +183,13 @@ export default function Edit({ categories, product, products }) {
                         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
                             <h3 className="text-[10px] font-black uppercase text-slate-400 mb-4 flex items-center gap-2 tracking-widest"><IconCurrencyDollar size={18} /> Harga & Stok</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <Input label="Harga Beli" value={data.buy_price} readOnly={data.type === 'bundle'} className={data.type === 'bundle' ? 'bg-slate-50 dark:bg-slate-800 font-bold' : ''} onChange={(e) => setData("buy_price", e.target.value)} />
+                                <Input label={data.type === 'bundle' ? "Total Modal (Auto)" : "Harga Beli"} value={data.buy_price} readOnly={data.type === 'bundle'} className={data.type === 'bundle' ? 'bg-slate-50 dark:bg-slate-800 font-bold text-primary-600' : ''} onChange={(e) => setData("buy_price", e.target.value)} />
                                 <Input label="Harga Jual" value={data.sell_price} onChange={(e) => setData("sell_price", e.target.value)} errors={errors.sell_price} />
                                 {data.type === "single" && <Input label="Stok" value={data.stock} onChange={(e) => setData("stock", e.target.value)} errors={errors.stock} />}
                                 <Input type="date" label="Kadaluarsa" value={data.expired_date} onChange={(e) => setData("expired_date", e.target.value)} />
                             </div>
                         </div>
 
-                        {/* Satuan Kustom */}
                         {data.type === "single" && (
                             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
                                 <div className="flex justify-between items-center mb-4">
@@ -205,6 +215,44 @@ export default function Edit({ categories, product, products }) {
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                        )}
+
+                        {/* Bundle Composition Section */}
+                        {data.type === "bundle" && (
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+                                <h3 className="text-[10px] font-black uppercase text-slate-400 mb-4 flex items-center gap-2 tracking-widest"><IconPackage size={18} /> Komposisi Paket</h3>
+                                <div className="space-y-3">
+                                    {data.bundle_items.map((item, index) => {
+                                        const selectedProd = products.find(p => p.id == item.item_id);
+                                        return (
+                                            <div key={index} className="flex flex-wrap items-end gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 transition-all">
+                                                <div className="flex-1 min-w-[150px]">
+                                                    <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Produk</label>
+                                                    <select className="w-full rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white text-sm focus:ring-primary-500" value={item.item_id} onChange={(e) => handleItemChange(index, "item_id", e.target.value)}>
+                                                        <option value="">-- Pilih Produk --</option>
+                                                        {products.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div className="w-40">
+                                                    <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">Satuan Item</label>
+                                                    <select className="w-full rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white text-sm focus:ring-primary-500" value={item.product_unit_id} onChange={(e) => handleItemChange(index, "product_unit_id", e.target.value)}>
+                                                        <option value="">Dasar ({selectedProd?.unit || 'Pcs'})</option>
+                                                        {selectedProd?.units?.map(u => <option key={u.id} value={u.id}>{u.unit_name} (Isi: {u.conversion})</option>)}
+                                                    </select>
+                                                </div>
+                                                <div className="w-20">
+                                                    <label className="text-[9px] font-black uppercase text-slate-400 mb-1 block text-center">Qty</label>
+                                                    <input type="number" step="0.01" className="w-full text-center rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white text-sm focus:ring-primary-500" value={item.qty} onChange={(e) => handleItemChange(index, "qty", e.target.value)} />
+                                                </div>
+                                                <button type="button" onClick={() => removeBundleItem(index)} className="p-2.5 bg-red-50 dark:bg-red-950 text-red-600 rounded-lg hover:bg-red-100 transition-colors shadow-sm"><IconTrash size={18} /></button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <button type="button" onClick={addBundleItem} className="mt-4 flex items-center gap-2 text-[10px] font-black uppercase text-primary-600 hover:text-primary-700 transition-colors">
+                                    <IconPlus size={18} /> Tambah Produk Ke Paket
+                                </button>
                             </div>
                         )}
 
