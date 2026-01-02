@@ -19,21 +19,25 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Mendaftarkan middleware HandleInertiaRequests ke dalam grup 'web'
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
+        // Menambahkan alias untuk Spatie Permission
         $middleware->alias([
             'role'               => RoleMiddleware::class,
             'permission'         => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
         ]);
+        
+        // Memastikan session stateful agar auth user terbaca di middleware
+        $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions) {
         
         // --- 1. Handle Error Permission Spatie (403) ---
-        // Alih-alih redirect back (yang bisa bikin loop), kita render halaman Error.jsx
         $exceptions->render(function (UnauthorizedException $e, Request $request) {
             return Inertia::render('Error', ['status' => 403])
                 ->toResponse($request)
