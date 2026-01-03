@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from "react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
-import { Head, useForm, usePage, Link } from "@inertiajs/react";
+import { Head, useForm, usePage, Link, router } from "@inertiajs/react";
 import Input from "@/Components/Dashboard/Input";
 import Textarea from "@/Components/Dashboard/TextArea";
 import InputSelect from "@/Components/Dashboard/InputSelect";
 import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 import {
     IconPackage, IconDeviceFloppy, IconArrowLeft, IconPhoto,
     IconBarcode, IconCurrencyDollar, IconCalendar, IconPlus,
-    IconTrash, IconScale, IconX
+    IconTrash, IconScale, IconX, IconDatabase, IconCalendarTime, IconAlertCircle
 } from "@tabler/icons-react";
 
 export default function Edit({ categories, product, products }) {
@@ -67,26 +68,45 @@ export default function Edit({ categories, product, products }) {
         }
     };
 
-    // --- FIX LOGIC AUTO CALCULATE MODAL (BUNDLING DENGAN MULTI-SATUAN) ---
+    // --- FITUR ADJUSTMENT STOK PER BATCH ---
+    const handleAdjustment = (batchId, currentQty) => {
+        Swal.fire({
+            title: 'Penyesuaian Stok',
+            text: `Masukkan jumlah stok baru untuk batch ini (Sisa saat ini: ${currentQty})`,
+            input: 'number',
+            inputAttributes: { min: 0, step: 'any' },
+            showCancelButton: true,
+            confirmButtonText: 'Update Stok',
+            confirmButtonColor: '#6366f1',
+            customClass: { popup: 'rounded-3xl dark:bg-slate-900 dark:text-white' }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                router.post(route('stock_opnames.store'), {
+                    product_id: product.id,
+                    stock_actual: result.value,
+                    batch_id: batchId,
+                    notes: "Penyesuaian manual via Edit Produk"
+                }, {
+                    onSuccess: () => toast.success("Stok batch berhasil disesuaikan"),
+                });
+            }
+        });
+    };
+
     const calculateTotalModal = (items) => {
         if (data.type !== 'bundle') return;
         let totalModal = 0;
-        
         items.forEach(item => {
             const originalProduct = products.find(p => p.id == item.item_id);
             if (originalProduct) {
-                // Cari konversi satuan item dalam resep
                 let conversion = 1;
                 if (item.product_unit_id) {
                     const unitData = originalProduct.units?.find(u => u.id == item.product_unit_id);
                     conversion = unitData ? parseFloat(unitData.conversion) : 1;
                 }
-                
-                // Rumus: Modal Dasar * Qty * Konversi Satuan
                 totalModal += parseFloat(originalProduct.buy_price) * parseFloat(item.qty || 0) * conversion;
             }
         });
-        
         setData(prevData => ({ ...prevData, buy_price: totalModal, bundle_items: items }));
     };
 
@@ -103,10 +123,7 @@ export default function Edit({ categories, product, products }) {
     const handleItemChange = (index, field, value) => {
         const list = [...data.bundle_items];
         list[index][field] = value;
-        
-        // Reset unit jika produk di baris tersebut diganti
         if (field === "item_id") list[index]["product_unit_id"] = "";
-        
         data.type === 'bundle' ? calculateTotalModal(list) : setData("bundle_items", list);
     };
 
@@ -120,7 +137,6 @@ export default function Edit({ categories, product, products }) {
 
     const submit = (e) => {
         e.preventDefault();
-        // Gunakan post karena Laravel memerlukan POST + _method: PUT untuk upload file
         post(route("products.update", product.id), {
             onSuccess: () => toast.success("Produk berhasil diperbarui"),
             onError: () => toast.error("Gagal memperbarui produk"),
@@ -185,10 +201,83 @@ export default function Edit({ categories, product, products }) {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Input label={data.type === 'bundle' ? "Total Modal (Auto)" : "Harga Beli"} value={data.buy_price} readOnly={data.type === 'bundle'} className={data.type === 'bundle' ? 'bg-slate-50 dark:bg-slate-800 font-bold text-primary-600' : ''} onChange={(e) => setData("buy_price", e.target.value)} />
                                 <Input label="Harga Jual" value={data.sell_price} onChange={(e) => setData("sell_price", e.target.value)} errors={errors.sell_price} />
-                                {data.type === "single" && <Input label="Stok" value={data.stock} onChange={(e) => setData("stock", e.target.value)} errors={errors.stock} />}
+                                {data.type === "single" && <Input label="Stok Saat Ini (Total)" value={data.stock} onChange={(e) => setData("stock", e.target.value)} errors={errors.stock} />}
                                 <Input type="date" label="Kadaluarsa" value={data.expired_date} onChange={(e) => setData("expired_date", e.target.value)} />
                             </div>
                         </div>
+
+                        {/* --- TABEL RIWAYAT BATCH (FIFO/LIFO) --- */}
+                        {data.type === "single" && (
+                            <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-xl text-primary-600">
+                                            <IconDatabase size={20} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none">Manajemen Batch</h3>
+                                            <p className="text-sm font-black dark:text-white uppercase tracking-tight">Rincian Modal per Kedatangan</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-separate border-spacing-y-2">
+                                        <thead>
+                                            <tr className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                                <th className="px-4 py-2">Tgl Masuk</th>
+                                                <th className="px-4 py-2">Sisa / Total</th>
+                                                <th className="px-4 py-2 text-right">Harga Modal</th>
+                                                <th className="px-4 py-2 text-right">Subtotal</th>
+                                                <th className="px-4 py-2 text-center">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {product.stock_batches && product.stock_batches.length > 0 ? (
+                                                product.stock_batches.map((batch, index) => (
+                                                    <tr key={index} className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl group transition-all">
+                                                        <td className="px-4 py-4 text-[11px] font-bold dark:text-white first:rounded-l-2xl">
+                                                            <div className="flex items-center gap-2">
+                                                                <IconCalendarTime size={16} className="text-slate-400" />
+                                                                {new Date(batch.created_at).toLocaleDateString('id-ID', {day:'2-digit', month:'short', year:'numeric'})}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-4 text-[11px] font-black">
+                                                            <span className="text-primary-600 text-sm">{batch.qty_remaining}</span>
+                                                            <span className="text-slate-400 ml-1">/ {batch.qty_in} {product.unit}</span>
+                                                        </td>
+                                                        <td className="px-4 py-4 text-[11px] font-bold text-right dark:text-white">
+                                                            Rp {parseFloat(batch.buy_price).toLocaleString()}
+                                                        </td>
+                                                        <td className="px-4 py-4 text-[11px] font-black text-right text-emerald-600">
+                                                            Rp {(batch.qty_remaining * batch.buy_price).toLocaleString()}
+                                                        </td>
+                                                        <td className="px-4 py-4 text-center last:rounded-r-2xl">
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => handleAdjustment(batch.id, batch.qty_remaining)}
+                                                                className="p-2 text-slate-400 hover:text-primary-600 hover:bg-white dark:hover:bg-slate-900 rounded-xl transition-all"
+                                                                title="Penyesuaian Stok Batch"
+                                                            >
+                                                                <IconScale size={18} />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="5" className="text-center py-10 bg-slate-50 dark:bg-slate-800/30 rounded-3xl">
+                                                        <IconAlertCircle size={32} className="mx-auto text-slate-300 mb-2" />
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Belum ada data batch aktif</p>
+                                                        <p className="text-[9px] text-slate-400 mt-1 italic">Silakan tambah stok di atas untuk membuat batch baru</p>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
 
                         {data.type === "single" && (
                             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
@@ -218,7 +307,6 @@ export default function Edit({ categories, product, products }) {
                             </div>
                         )}
 
-                        {/* Bundle Composition Section */}
                         {data.type === "bundle" && (
                             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
                                 <h3 className="text-[10px] font-black uppercase text-slate-400 mb-4 flex items-center gap-2 tracking-widest"><IconPackage size={18} /> Komposisi Paket</h3>

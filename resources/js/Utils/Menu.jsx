@@ -28,7 +28,8 @@ import {
     IconCash,
     IconAdjustmentsHorizontal,
     IconAlertTriangle,
-    IconBusinessplan, // <--- [BARU] Ikon untuk Laporan Keuangan
+    IconBusinessplan,
+    IconSettings, // <--- [BARU] Import Icon Settings
 } from "@tabler/icons-react";
 import hasAnyPermission from "./Permission";
 import React from "react";
@@ -136,7 +137,6 @@ export default function Menu() {
                     icon: <IconAlertTriangle size={20} strokeWidth={1.5} className="text-red-500" />,
                     permissions: hasAnyPermission(["reports-access"]),
                 },
-                // --- [BARU] MENU LAPORAN KEUANGAN (AKUNTANSI) ---
                 {
                     title: "Laporan Keuangan",
                     href: route("report.finance"),
@@ -144,7 +144,6 @@ export default function Menu() {
                     icon: <IconBusinessplan size={20} strokeWidth={1.5} className="text-emerald-500" />,
                     permissions: hasAnyPermission(["reports-access"]),
                 },
-                // ----------------------------------------------
                 {
                     title: "Laporan Keuntungan",
                     href: route("reports.profits.index"),
@@ -216,6 +215,14 @@ export default function Menu() {
         {
             title: "Pengaturan",
             details: [
+                // --- [BARU] MENU SYSTEM SETTINGS ---
+                {
+                    title: "System Settings",
+                    href: route("settings.index"),
+                    active: url === "/dashboard/settings",
+                    icon: <IconSettings size={20} strokeWidth={1.5} className="text-blue-500" />,
+                    permissions: hasAnyPermission(["dashboard-access"]),
+                },
                 {
                     title: "Payment Gateway",
                     href: route("settings.payments.edit"),

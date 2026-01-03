@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Storage;
-use Carbon\Carbon; // Wajib diimport untuk perhitungan tanggal
+use Carbon\Carbon;
 
 class Product extends Model
 {
@@ -29,6 +29,9 @@ class Product extends Model
 
     protected $casts = [
         'expired_date' => 'date',
+        'buy_price'    => 'float',
+        'sell_price'   => 'float',
+        'stock'        => 'float',
     ];
 
     /**
@@ -38,10 +41,6 @@ class Product extends Model
 
     /**
      * Accessor: Menghitung sisa hari menjelang expired secara real-time
-     * Menghasilkan angka: 
-     * (+) Positif jika belum expired (contoh: 15 hari lagi)
-     * (0) Nol jika hari ini adalah tanggal expired
-     * (-) Negatif jika sudah lewat expired (contoh: -2 hari yang lalu)
      */
     protected function daysUntilExpired(): Attribute
     {
@@ -52,10 +51,18 @@ class Product extends Model
                 $now = Carbon::now()->startOfDay();
                 $expiry = Carbon::parse($this->expired_date)->startOfDay();
                 
-                // Menghitung selisih hari (false agar menghasilkan angka negatif jika sudah lewat)
                 return (int) $now->diffInDays($expiry, false);
             }
         );
+    }
+
+    /**
+     * Relasi ke Stock Batches (Penting untuk FIFO/LIFO/Specific)
+     * Digunakan untuk mencatat riwayat kedatangan stok dengan harga modal yang berbeda.
+     */
+    public function stock_batches()
+    {
+        return $this->hasMany(StockBatch::class);
     }
 
     public function category()

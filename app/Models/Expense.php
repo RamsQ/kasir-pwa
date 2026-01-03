@@ -10,20 +10,33 @@ class Expense extends Model
 {
     use HasFactory;
 
-    // Tambahkan user_id agar bisa disimpan dan dimanipulasi
-    protected $fillable = ['user_id', 'name', 'category', 'amount', 'date', 'image', 'note'];
+    /**
+     * Properti fillable untuk mass assignment.
+     * Ditambahkan 'source' untuk menentukan sumber dana (Kas Laci / Modal Luar).
+     */
+    protected $fillable = [
+        'user_id', 
+        'name', 
+        'category', 
+        'amount', 
+        'date', 
+        'image', 
+        'note', 
+        'source'
+    ];
 
     protected $casts = [
         'amount' => 'integer',
         'date'   => 'date:Y-m-d',
     ];
 
-    // Otomatis buat URL lengkap untuk gambar
+    /**
+     * Menambahkan image_url ke dalam response JSON secara otomatis.
+     */
     protected $appends = ['image_url'];
 
     /**
-     * Relasi ke model User
-     * Ini yang akan memperbaiki error RelationNotFoundException
+     * Relasi ke model User (Siapa petugas yang menginput).
      */
     public function user()
     {
@@ -31,13 +44,13 @@ class Expense extends Model
     }
 
     /**
-     * Accessor untuk mendapatkan URL lengkap gambar nota
+     * Accessor untuk mendapatkan URL lengkap gambar nota.
      */
     public function getImageUrlAttribute()
     {
         if (!$this->image) return null;
         
-        // Pastikan path sesuai dengan folder penyimpanan di Controller
+        // Mengarahkan ke symlink storage (php artisan storage:link)
         return asset('storage/expenses/' . $this->image);
     }
 }

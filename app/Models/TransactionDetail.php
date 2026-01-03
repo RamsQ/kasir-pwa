@@ -19,6 +19,7 @@ class TransactionDetail extends Model
         'product_id', 
         'qty', 
         'price',
+        'buy_price',       // <--- TAMBAHKAN INI AGAR HPP TERSIMPAN
         'unit',            // Kolom teks: Menyimpan "Sachet", "Box", dll.
         'product_unit_id'  // Foreign Key: ID referensi ke tabel product_units
     ];
@@ -45,8 +46,6 @@ class TransactionDetail extends Model
 
     /**
      * Relasi ke ProductUnit (Satuan Kustom Konversi)
-     * * PERUBAHAN PENTING: Nama fungsi diubah menjadi 'product_unit' 
-     * agar tidak menimpa (overwrite) data pada kolom 'unit' (string).
      * * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function product_unit()

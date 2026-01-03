@@ -18,6 +18,7 @@ use App\Http\Controllers\Apps\StockOpnameController;
 use App\Http\Controllers\Apps\ExpiredProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\Apps\SettingController; // Import SettingController Baru
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -58,7 +59,11 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::resource('/roles', RoleController::class)->except(['create', 'edit', 'show']);
         Route::resource('/users', UserController::class)->except('show');
 
-        // Settings
+        // Settings (Global App & COGS Method)
+        Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
+        Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
+
+        // Settings Gateway & Receipt
         Route::get('/settings/payments', [PaymentSettingController::class, 'edit'])->name('settings.payments.edit');
         Route::put('/settings/payments', [PaymentSettingController::class, 'update'])->name('settings.payments.update');
         Route::get('/settings/receipt', [\App\Http\Controllers\Apps\ReceiptSettingController::class, 'index'])->name('settings.receipt.index');
