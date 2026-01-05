@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Apps;
 use App\Exceptions\PaymentGatewayException;
 use App\Http\Controllers\Controller;
 use App\Models\Cart;
-use App\Models\Category; // <--- Pastikan Model Category di-import
+use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Discount;
 use App\Models\PaymentSetting;
@@ -36,7 +36,7 @@ class TransactionController extends Controller
         $this->cogsService = $cogsService;
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $userId = auth()->user()->id;
 
@@ -57,23 +57,29 @@ class TransactionController extends Controller
             ->latest()
             ->get();
 
-        // 4. Data Produk untuk Kasir
+        // 4. Data Produk untuk Kasir (Dioptimalkan)
         $products = Product::with(['category:id,name', 'bundle_items', 'units'])
             ->select('id', 'barcode', 'title', 'description', 'image', 'buy_price', 'sell_price', 'stock', 'category_id', 'type', 'unit')
             ->where(function ($query) {
                 $query->where('stock', '>', 0)
                       ->orWhere('type', 'bundle');
             })
+            ->when($request->search, function($query, $search) {
+                $query->where('title', 'like', '%'.$search.'%')
+                      ->orWhere('barcode', 'like', '%'.$search.'%');
+            })
             ->orderBy('title')
             ->get();
 
-        // 5. FITUR BARU: Data Kategori untuk Sidebar Kiri
+        // 5. Data Kategori untuk Sidebar
         $categories = Category::select('id', 'name', 'image')
             ->orderBy('name')
             ->get();
 
-        // 6. Data Pelanggan & Diskon
-        $customers = Customer::latest()->get();
+        // 6. Data Pelanggan (Pastikan ini terkirim untuk fitur Pilih Pelanggan)
+        // Saya tambahkan select agar data yang dikirim tidak terlalu berat
+        $customers = Customer::select('id', 'name', 'phone')->latest()->get();
+        
         $activeDiscounts = Discount::active()->with('product:id,title')->get();
         
         // 7. Pengaturan Pembayaran
@@ -89,14 +95,15 @@ class TransactionController extends Controller
             'carts'                 => $carts,
             'carts_total'           => (int) $carts_total,
             'holds'                 => $holds,
-            'customers'             => $customers,
+            'customers'             => $customers, // <--- Fitur Pilih Pelanggan
             'products'              => $products,
-            'categories'            => $categories, // <--- Dikirim ke Sidebar React
+            'categories'            => $categories,
             'discounts'             => $activeDiscounts,
             'paymentSetting'        => $paymentSetting,
             'activeShift'           => $activeShift,
             'paymentGateways'       => $paymentSetting?->enabledGateways() ?? [],
             'defaultPaymentGateway' => $defaultGateway,
+            'filters'               => $request->only(['search']),
         ]);
     }
 
@@ -110,6 +117,7 @@ class TransactionController extends Controller
             return back()->withErrors(['error' => 'Anda harus membuka shift terlebih dahulu!']);
         }
 
+        // Ambil metode COGS dari setting (FIFO/LIFO/AVERAGE)
         $cogsMethod = Setting::first()->cogs_method ?? 'AVERAGE';
         $paymentGateway = strtolower($request->input('payment_gateway', 'cash'));
         $invoice = 'TRX-' . Str::upper(Str::random(10));
@@ -122,7 +130,7 @@ class TransactionController extends Controller
             
             $transaction = Transaction::create([
                 'cashier_id'     => auth()->user()->id,
-                'customer_id'    => $request->customer_id,
+                'customer_id'    => $request->customer_id, // Disimpan ke tabel transaksi
                 'shift_id'       => $activeShift->id, 
                 'invoice'        => $invoice,
                 'cash'           => $cashAmount,
@@ -140,6 +148,7 @@ class TransactionController extends Controller
                 $unitName = $cart->unit ? $cart->unit->unit_name : $cart->product->unit;
                 $unitPrice = $cart->unit ? $cart->unit->sell_price : $cart->product->sell_price;
                 
+                // Hitung Diskon Produk
                 $prodDiscount = $discounts->where('product_id', $cart->product_id)->first();
                 if ($prodDiscount) {
                     if ($prodDiscount->type === 'percentage') {
@@ -152,6 +161,7 @@ class TransactionController extends Controller
                 $finalSellingPrice = max(0, $unitPrice) * $cart->qty;
                 $current_total_buy_price = 0;
 
+                // Logika Potong Stok (FIFO/LIFO/AVERAGE) melalui CogsService
                 if ($cart->product->type === 'bundle') {
                     foreach ($cart->product->bundle_items as $item) {
                         $qtyInRecipe = $item->pivot->qty;
@@ -197,6 +207,7 @@ class TransactionController extends Controller
             return $transaction;
         });
 
+        // Integrasi Payment Gateway (Midtrans/Xendit)
         if ($paymentGateway === 'midtrans' || $paymentGateway === 'xendit') {
             try {
                 $paymentSetting = PaymentSetting::first();
@@ -212,6 +223,44 @@ class TransactionController extends Controller
 
         return to_route('transactions.print', $transaction->invoice);
     }
+
+    // ... (storeExpense, holdCart, resumeCart, clearHold tetap sama)
+
+    public function addToCart(Request $request)
+    {
+        $product = Product::find($request->product_id);
+        if (!$product) return back()->with('error', 'Produk tidak ditemukan.');
+        
+        $qty = (float) $request->qty;
+        $unitId = $request->product_unit_id ?? null;
+        
+        // Cek Stok (Penting agar tidak minus)
+        if ($product->type === 'single' && $product->stock < $qty) return back()->with('error', 'Stok tidak mencukupi!');
+        
+        $cart = Cart::where('product_id', $request->product_id)
+            ->where('product_unit_id', $unitId)
+            ->where('cashier_id', auth()->user()->id)
+            ->whereNull('hold_id')
+            ->first();
+        
+        if ($cart) {
+            $cart->increment('qty', $qty);
+            $unitPrice = $unitId ? ProductUnit::find($unitId)->sell_price : $product->sell_price;
+            $cart->price = $unitPrice * $cart->qty;
+            $cart->save();
+        } else {
+            Cart::create([
+                'cashier_id' => auth()->user()->id, 
+                'product_id' => $request->product_id, 
+                'product_unit_id' => $unitId, 
+                'qty' => $qty, 
+                'price' => ($unitId ? ProductUnit::find($unitId)->sell_price : $product->sell_price) * $qty
+            ]);
+        }
+        return back();
+    }
+
+    // ... (updateCart, destroyCart, print, refund, history, destroyAll tetap sama dengan fungsionalitas aslinya)
 
     public function storeExpense(Request $request)
     {
@@ -255,29 +304,6 @@ class TransactionController extends Controller
     {
         Hold::where('id', $holdId)->where('user_id', auth()->id())->delete();
         return back()->with('success', 'Antrean dihapus.');
-    }
-
-    public function addToCart(Request $request)
-    {
-        $product = Product::find($request->product_id);
-        if (!$product) return back()->with('error', 'Produk tidak ditemukan.');
-        
-        $qty = (float) $request->qty;
-        $unitId = $request->product_unit_id ?? null;
-        
-        if ($product->type === 'single' && $product->stock < $qty) return back()->with('error', 'Stok tidak mencukupi!');
-        
-        $cart = Cart::where('product_id', $request->product_id)->where('product_unit_id', $unitId)->where('cashier_id', auth()->user()->id)->whereNull('hold_id')->first();
-        
-        if ($cart) {
-            $cart->increment('qty', $qty);
-            $unitPrice = $unitId ? ProductUnit::find($unitId)->sell_price : $product->sell_price;
-            $cart->price = $unitPrice * $cart->qty;
-            $cart->save();
-        } else {
-            Cart::create(['cashier_id' => auth()->user()->id, 'product_id' => $request->product_id, 'product_unit_id' => $unitId, 'qty' => $qty, 'price' => ($unitId ? ProductUnit::find($unitId)->sell_price : $product->sell_price) * $qty]);
-        }
-        return back();
     }
 
     public function updateCart(Request $request, $cart_id)

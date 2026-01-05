@@ -11,24 +11,25 @@ class StockBatch extends Model
 
     /**
      * Properti fillable untuk mengizinkan penyimpanan data secara massal.
+     * Pastikan kolom ini sesuai dengan database Anda.
      */
     protected $fillable = [
         'product_id',
-        'qty_in',
-        'qty_remaining',
-        'buy_price',
-        'serial_number',
+        'qty_in',        // Stok awal masuk
+        'qty_remaining', // Stok yang tersisa setelah dipotong transaksi (Penting untuk COGS)
+        'buy_price',     // Harga modal per kedatangan ini
+        'serial_number', // Nomor Batch / Referensi
     ];
 
     /**
      * Casting tipe data agar lebih konsisten saat digunakan di Frontend/JS.
-     * Menggunakan float untuk stok agar mendukung timbangan/desimal.
      */
     protected $casts = [
         'qty_in'        => 'float',
         'qty_remaining' => 'float',
         'buy_price'     => 'float',
         'created_at'    => 'datetime',
+        'updated_at'    => 'datetime',
     ];
 
     /**
@@ -41,7 +42,7 @@ class StockBatch extends Model
 
     /**
      * Scope untuk mengambil batch yang masih memiliki sisa stok.
-     * Digunakan dalam CogsService untuk memotong stok.
+     * Digunakan untuk memotong stok saat penjualan (FIFO/LIFO).
      */
     public function scopeAvailable($query)
     {
@@ -50,6 +51,7 @@ class StockBatch extends Model
 
     /**
      * Scope untuk urutan FIFO (First In First Out)
+     * Batch paling lama akan diambil lebih dulu.
      */
     public function scopeFifo($query)
     {
@@ -58,6 +60,7 @@ class StockBatch extends Model
 
     /**
      * Scope untuk urutan LIFO (Last In First Out)
+     * Batch paling baru akan diambil lebih dulu.
      */
     public function scopeLifo($query)
     {

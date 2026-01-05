@@ -5,7 +5,7 @@ import {
     IconLayoutDashboard, IconCash, IconSun, IconMoon,
     IconPower, IconPackage, IconQrcode, IconPrinter, IconTag, IconScale,
     IconDoorEnter, IconDoorExit, IconClockPause, IconRestore, IconTrash,
-    IconCashOff, IconLayoutGrid, IconList, IconCategory
+    IconCashOff, IconLayoutGrid, IconList, IconCategory, IconUser
 } from "@tabler/icons-react";
 import Swal from "sweetalert2";
 import ThermalReceipt from "@/Components/Receipt/ThermalReceipt";
@@ -19,10 +19,10 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
     
     // --- STATE UTAMA ---
     const [search, setSearch] = useState("");
-    const [selectedCategory, setSelectedCategory] = useState("all"); // <--- Fitur Baru
-    const [viewMode, setViewMode] = useState("grid"); // <--- Fitur Baru: 'grid' atau 'list'
+    const [selectedCategory, setSelectedCategory] = useState("all"); 
+    const [viewMode, setViewMode] = useState("grid"); 
     const [cash, setCash] = useState(0);
-    const [selectedCustomer, setSelectedCustomer] = useState("");
+    const [selectedCustomer, setSelectedCustomer] = useState(""); 
     const [discountAmount, setDiscountAmount] = useState(0);
     const [showQrisModal, setShowQrisModal] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(false);
@@ -72,7 +72,7 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
         }
     }, [flash]);
 
-    // --- LOGIKA FILTER PRODUK (Pencarian + Kategori) ---
+    // --- LOGIKA FILTER PRODUK ---
     const filteredProducts = useMemo(() => {
         const safeProducts = Array.isArray(products) ? products : [];
         return safeProducts.filter(p => {
@@ -205,7 +205,7 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
             payment_gateway: method,
         }, {
             onSuccess: () => { 
-                setCash(0); setShowQrisModal(false); setSearch("");
+                setCash(0); setShowQrisModal(false); setSearch(""); setSelectedCustomer("");
                 Swal.fire("Berhasil!", "Transaksi Selesai", "success");
             },
         });
@@ -273,7 +273,7 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
                 <main className="flex flex-1 overflow-hidden lg:flex-row flex-col">
                     
                     {/* SIDEBAR KATEGORI */}
-                    <div className="w-20 lg:w-64 bg-white dark:bg-slate-900 border-r dark:border-slate-800 flex flex-col shrink-0">
+                    <aside className="w-20 lg:w-64 bg-white dark:bg-slate-900 border-r dark:border-slate-800 flex flex-col shrink-0">
                         <div className="p-4 hidden lg:block">
                             <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Kategori</h2>
                         </div>
@@ -297,7 +297,7 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
                                 </button>
                             ))}
                         </div>
-                    </div>
+                    </aside>
 
                     {/* AREA TENGAH: PRODUK */}
                     <div className="flex-1 flex flex-col min-w-0">
@@ -367,6 +367,24 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
                         <div className="p-5 border-b dark:border-slate-800 flex justify-between items-center shrink-0">
                              <span className="flex items-center gap-2 font-black dark:text-white uppercase tracking-tight italic"><IconShoppingCart size={22} className="text-primary-500" /> Detail Pesanan</span>
                              <span className="bg-primary-500 text-white px-3 py-1 rounded-full text-[10px] font-black tracking-tighter shadow-lg shadow-primary-500/20">{carts?.length || 0} ITEM</span>
+                        </div>
+
+                        {/* --- FITUR BARU: PILIH PELANGGAN --- */}
+                        <div className="px-5 py-3 border-b dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Pilih Pelanggan</label>
+                            <div className="relative">
+                                <IconUser size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <select 
+                                    value={selectedCustomer} 
+                                    onChange={(e) => setSelectedCustomer(e.target.value)} 
+                                    className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold dark:text-white shadow-sm focus:ring-2 focus:ring-primary-500"
+                                >
+                                    <option value="">-- Pelanggan Umum --</option>
+                                    {customers.map((customer) => (
+                                        <option key={customer.id} value={customer.id}>{customer.name} - {customer.phone}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
@@ -491,13 +509,11 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
                         <form onSubmit={handleCashOut} className="space-y-6">
                             <div>
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tujuan / Alasan</label>
-                                <input type="text" value={cashOutData.name} onChange={e => setCashOutData('name', e.target.value)} className="w-full mt-2 py-4 px-5 rounded-2xl border-none bg-slate-50 dark:bg-slate-800 dark:text-white text-sm font-bold shadow-inner focus:ring-2 focus:ring-orange-500 transition-all" placeholder="Contoh: Beli Air Galon / Sabun" required />
-                                {cashOutErrors.name && <p className="text-red-500 text-[10px] mt-2 font-black italic">{cashOutErrors.name}</p>}
+                                <input type="text" value={cashOutData.name} onChange={e => setCashOutData('name', e.target.value)} className="w-full mt-2 py-4 px-5 rounded-2xl border-none bg-slate-50 dark:bg-slate-800 dark:text-white text-sm font-bold shadow-inner focus:ring-2 focus:ring-orange-500 transition-all" placeholder="Contoh: Beli Air Galon" required />
                             </div>
                             <div>
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nominal (Rp)</label>
                                 <input type="number" value={cashOutData.amount} onChange={e => setCashOutData('amount', e.target.value)} className="w-full mt-2 py-4 px-5 rounded-2xl border-none bg-slate-50 dark:bg-slate-800 dark:text-white text-sm font-bold shadow-inner focus:ring-2 focus:ring-orange-500 transition-all" placeholder="0" required />
-                                {cashOutErrors.amount && <p className="text-red-500 text-[10px] mt-2 font-black italic">{cashOutErrors.amount}</p>}
                             </div>
                             <div className="grid grid-cols-2 gap-4 pt-4">
                                 <button type="button" onClick={() => setShowCashOut(false)} className="py-4 text-slate-400 font-black text-[10px] uppercase hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all tracking-widest">Batal</button>
@@ -526,7 +542,7 @@ const Index = ({ carts = [], carts_total = 0, products = [], customers = [], dis
                                         <p className="text-sm font-black text-indigo-500 mt-0.5">{formatPrice(h.total)}</p>
                                     </div>
                                     <div className="flex gap-2">
-                                        <button onClick={() => handleResumeHold(h.id)} className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-500/20 active:scale-90 transition-all hover:bg-indigo-700" title="Ambil Antrean"><IconRestore size={20}/></button>
+                                        <button onClick={() => handleResumeHold(h.id)} className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg active:scale-90 transition-all hover:bg-indigo-700" title="Ambil Antrean"><IconRestore size={20}/></button>
                                         <button onClick={() => router.delete(route('holds.destroy', h.id))} className="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-2xl hover:bg-red-500 hover:text-white active:scale-90 transition-all" title="Hapus"><IconTrash size={20}/></button>
                                     </div>
                                 </div>

@@ -15,10 +15,11 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ShiftController; 
 use App\Http\Controllers\Apps\StockOpnameController;
+use App\Http\Controllers\Apps\StockInController; // Import StockInController Baru
 use App\Http\Controllers\Apps\ExpiredProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ExpenseController;
-use App\Http\Controllers\Apps\SettingController; // Import SettingController Baru
+use App\Http\Controllers\Apps\SettingController; 
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -89,6 +90,7 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         // --- FITUR HOLD TRANSACTION ---
         Route::post('/holds', [TransactionController::class, 'holdCart'])->name('holds.store');
         Route::post('/holds/{holdId}/resume', [TransactionController::class, 'resumeCart'])->name('transactions.resume');
+        Route::get('/holds/history', [TransactionController::class, 'holdHistory'])->name('holds.history');
         Route::delete('/holds/{id}', [TransactionController::class, 'clearHold'])->name('holds.destroy');
 
         Route::get('/transactions/{invoice}/print', [TransactionController::class, 'print'])->name('transactions.print');
@@ -105,6 +107,18 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::get('/products/template', [ProductController::class, 'template'])->name('products.template');
         Route::post('/products/import', [ProductController::class, 'import'])->name('products.import');
         Route::resource('products', ProductController::class);
+
+        // --- FITUR STOCK IN (PENDAFTARAN MODAL FIFO/AVERAGE) ---
+        Route::get('/stock-in', [StockInController::class, 'index'])->name('stock_in.index');
+        Route::post('/stock-in', [StockInController::class, 'store'])->name('stock_in.store');
+        
+        // --- FITUR EXPORT & IMPORT EXCEL (STOCK IN) ---
+        // Route export template berisi semua data produk untuk bulk update
+        Route::get('/stock-in-template', [StockInController::class, 'exportTemplate'])->name('stock_in.template');
+        // Route export history transaksi stock in
+        Route::get('/stock-in-export', [StockInController::class, 'export'])->name('stock_in.export');
+        // Route parse excel untuk memuat data ke tabel frontend
+        Route::post('/stock-in-parse', [StockInController::class, 'parseExcel'])->name('stock_in.parse_excel');
 
         // Stock Opname
         Route::group(['middleware' => ['permission:stock_opnames.index']], function () {

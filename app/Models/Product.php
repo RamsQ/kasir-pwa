@@ -51,14 +51,24 @@ class Product extends Model
                 $now = Carbon::now()->startOfDay();
                 $expiry = Carbon::parse($this->expired_date)->startOfDay();
                 
+                // Menggunakan diffInDays untuk mendapatkan sisa hari
                 return (int) $now->diffInDays($expiry, false);
             }
         );
     }
 
     /**
-     * Relasi ke Stock Batches (Penting untuk FIFO/LIFO/Specific)
-     * Digunakan untuk mencatat riwayat kedatangan stok dengan harga modal yang berbeda.
+     * Relasi ke Stock Movements (Penting untuk Fitur Stock In/Out)
+     * Sinkronkan riwayat per kedatangan/pengeluaran barang
+     */
+    public function stock_movements()
+    {
+        return $this->hasMany(StockMovement::class)->latest();
+    }
+
+    /**
+     * Relasi ke Stock Batches (Penting untuk FIFO/LIFO)
+     * Jika Anda ingin melacak stok "Batch A harga 1000, Batch B harga 1100"
      */
     public function stock_batches()
     {

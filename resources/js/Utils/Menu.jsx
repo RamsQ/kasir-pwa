@@ -1,24 +1,12 @@
 import { usePage } from "@inertiajs/react";
 import {
-    IconBooks,
     IconBox,
-    IconCategory,
-    IconChartArrowsVertical,
-    IconChartBarPopular,
-    IconChartInfographic,
-    IconCirclePlus,
-    IconClockHour6,
-    IconCreditCard,
-    IconFileCertificate,
-    IconFileDescription,
     IconFolder,
     IconLayout2,
-    IconSchool,
     IconShoppingCart,
     IconTable,
     IconUserBolt,
     IconUserShield,
-    IconUserSquare,
     IconUsers,
     IconUsersPlus,
     IconRefresh,
@@ -29,7 +17,13 @@ import {
     IconAdjustmentsHorizontal,
     IconAlertTriangle,
     IconBusinessplan,
-    IconSettings, // <--- [BARU] Import Icon Settings
+    IconSettings,
+    IconPackageImport,
+    IconChartArrowsVertical,
+    IconChartBarPopular,
+    IconClockHour6,
+    IconCirclePlus,
+    IconCreditCard,
 } from "@tabler/icons-react";
 import hasAnyPermission from "./Permission";
 import React from "react";
@@ -52,6 +46,7 @@ export default function Menu() {
                 },
             ],
         },
+        // [1] DATA MANAGEMENT
         {
             title: "Data Management",
             details: [
@@ -70,13 +65,6 @@ export default function Menu() {
                     permissions: hasAnyPermission(["products-access"]),
                 },
                 {
-                    title: "Stock Opname",
-                    href: route("stock_opnames.index"),
-                    active: url.startsWith("/dashboard/stock-opnames"),
-                    icon: <IconAdjustmentsHorizontal size={20} strokeWidth={1.5} />,
-                    permissions: hasAnyPermission(["products-access"]),
-                },
-                {
                     title: "Pelanggan",
                     href: route("customers.index"),
                     active: url === "/dashboard/customers" ? true : false,
@@ -89,6 +77,26 @@ export default function Menu() {
                     active: url.startsWith("/dashboard/discounts"),
                     icon: <IconTicket size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["dashboard-access"]), 
+                },
+            ],
+        },
+        // [2] INVENTORY INTELLIGENCE (DIPINDAHKAN KE SINI)
+        {
+            title: "Inventory Intelligence",
+            details: [
+                {
+                    title: "Stock In",
+                    href: route("stock_in.index"),
+                    active: url.startsWith("/dashboard/stock-in"),
+                    icon: <IconPackageImport size={20} strokeWidth={1.5} className="text-rose-500" />,
+                    permissions: hasAnyPermission(["products-access", "stock_in.index"]),
+                },
+                {
+                    title: "Stock Opname",
+                    href: route("stock_opnames.index"),
+                    active: url.startsWith("/dashboard/stock-opnames"),
+                    icon: <IconAdjustmentsHorizontal size={20} strokeWidth={1.5} className="text-amber-500" />,
+                    permissions: hasAnyPermission(["products-access", "stock_opnames.index"]),
                 },
             ],
         },
@@ -118,9 +126,7 @@ export default function Menu() {
                     title: "Laporan Penjualan",
                     href: route("reports.sales.index"),
                     active: url.startsWith("/dashboard/reports/sales"),
-                    icon: (
-                        <IconChartArrowsVertical size={20} strokeWidth={1.5} />
-                    ),
+                    icon: <IconChartArrowsVertical size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["reports-access"]),
                 },
                 {
@@ -199,13 +205,8 @@ export default function Menu() {
                         {
                             title: "Tambah Data Pengguna",
                             href: route("users.create"),
-                            icon: (
-                                <IconCirclePlus size={20} strokeWidth={1.5} />
-                            ),
-                            active:
-                                url === "/dashboard/users/create"
-                                    ? true
-                                    : false,
+                            icon: <IconCirclePlus size={20} strokeWidth={1.5} />,
+                            active: url === "/dashboard/users/create" ? true : false,
                             permissions: hasAnyPermission(["users-create"]),
                         },
                     ],
@@ -215,7 +216,6 @@ export default function Menu() {
         {
             title: "Pengaturan",
             details: [
-                // --- [BARU] MENU SYSTEM SETTINGS ---
                 {
                     title: "System Settings",
                     href: route("settings.index"),

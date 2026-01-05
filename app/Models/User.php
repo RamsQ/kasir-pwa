@@ -55,7 +55,7 @@ class User extends Authenticatable
     }
 
     /**
-     * --- FITUR BARU: OVERRIDE PASSWORD RESET ---
+     * --- FITUR: OVERRIDE PASSWORD RESET ---
      * Mengirimkan email reset password menggunakan template mewah yang baru dibuat.
      */
     public function sendPasswordResetNotification($token)
@@ -73,8 +73,19 @@ class User extends Authenticatable
     }
 
     /**
+     * --- BARU: Get permissions names as array ---
+     * Digunakan oleh Controller untuk mengirim data permission ke Sidebar
+     */
+    public function getPermissionArray()
+    {
+        return $this->getAllPermissions()->pluck('name')->mapWithKeys(function ($pr) {
+            return [$pr => true];
+        })->toArray();
+    }
+
+    /**
      * get all permissions users
-     * Digunakan oleh helper Permission.jsx di frontend
+     * Fitur lama: Digunakan oleh helper Permission.jsx di frontend
      */
     public function getPermissions()
     {
