@@ -33,17 +33,24 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        // --- CEK ROLE USER SETELAH LOGIN ---
-        
         /** @var \App\Models\User $user */
         $user = $request->user();
 
-        // Jika user memiliki role 'cashier', langsung arahkan ke halaman POS/Transaksi
+        // --- LOGIKA PENGALIHAN BERDASARKAN ROLE (PRIORITAS DASHBOARD) ---
+
+        // 1. Jika user adalah pimpinan (Owner, Admin, atau Super-Admin), langsung ke Dashboard
+        // Ini memastikan pimpinan selalu melihat statistik/laporan pertama kali.
+        if ($user->hasAnyRole(['admin', 'owner', 'super-admin'])) {
+            return redirect()->intended(route('dashboard', absolute: false));
+        }
+
+        // 2. Jika user memiliki role 'cashier', langsung arahkan ke halaman POS/Transaksi
+        // Mempercepat proses kerja kasir tanpa harus melewati dashboard.
         if ($user->hasRole('cashier')) {
             return redirect()->route('transactions.index');
         }
 
-        // Jika bukan kasir (misal: admin), arahkan ke Dashboard atau tujuan awal
+        // 3. Default Fallback: Jika role tidak spesifik, arahkan ke Dashboard atau tujuan awal
         return redirect()->intended(route('dashboard', absolute: false));
     }
 
@@ -58,7 +65,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        // --- PERUBAHAN DISINI: DIARAHKAN KE HALAMAN LOGIN ---
+        // Diarahkan kembali ke halaman login utama
         return redirect()->route('login');
     }
 }

@@ -3,12 +3,13 @@ import { Head, Link } from "@inertiajs/react";
 import { 
     IconArrowLeft, IconPrinter, IconCash, IconPackage, 
     IconBuildingStore, IconReceipt, IconHash, IconCalendar, IconUser,
-    IconFileInvoice, IconUsers, IconBrandWhatsapp, IconExternalLink, IconScale
+    IconFileInvoice, IconUsers, IconBrandWhatsapp, IconExternalLink, IconScale,
+    IconBoxSeam
 } from "@tabler/icons-react";
 import Swal from "sweetalert2";
-import ThermalReceipt from "@/Components/Receipt/ThermalReceipt";
+import ThermalReceipt, { ThermalReceipt58mm } from "@/Components/Receipt/ThermalReceipt";
 
-export default function Print({ transaction, receiptSetting, isPublic = false }) {
+export default function Print({ transaction, receiptSetting, isPublic = false, qrisImage = null }) {
     // 1. Guard Utama
     if (!transaction || !transaction.invoice) {
         return <div className="p-10 text-center text-white bg-slate-900 min-h-screen">Memuat Transaksi...</div>;
@@ -54,22 +55,6 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
         else if (!phone.startsWith("62")) phone = "62" + phone;
 
         const shareLink = `${window.location.origin}/share/invoice/${transaction.invoice}`;
-
-        const itemDetails = details.map(item => {
-            // LOGIKA PRIORITAS SATUAN (String Database -> Relasi -> Default)
-            let unitLabel = "Pcs";
-            if (typeof item.unit === 'string' && item.unit.trim() !== "") {
-                unitLabel = item.unit;
-            } else if (item.unit && typeof item.unit === 'object') {
-                unitLabel = item.unit.unit_name || "Pcs";
-            } else if (item.product_unit?.unit_name) {
-                unitLabel = item.product_unit.unit_name;
-            }
-
-            let text = `- ${item.product?.title} [${item.qty} ${unitLabel}] = ${formatPrice(item.price)}`;
-            return text;
-        }).join('\n');
-
         const message = 
             `*STRUK DIGITAL ${storeName.toUpperCase()}*\n` +
             `----------------------------------\n` +
@@ -97,7 +82,8 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
                         <div className="flex bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
                             {[
                                 { id: "invoice", label: "A4", icon: IconFileInvoice }, 
-                                { id: "thermal80", label: "80mm", icon: IconReceipt }
+                                { id: "thermal80", label: "80mm", icon: IconReceipt },
+                                { id: "thermal58", label: "58mm", icon: IconReceipt }
                             ].map((mode) => (
                                 <button key={mode.id} onClick={() => setPrintMode(mode.id)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${printMode === mode.id ? "bg-emerald-600 text-white shadow-md" : "text-slate-500 hover:text-slate-200"}`}>
                                     <mode.icon size={16} /> {mode.label}
@@ -120,7 +106,7 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
                     <div className={`print-content bg-white ${isPublic ? '' : 'rounded-[2.5rem] shadow-2xl'} overflow-hidden print:shadow-none print:rounded-none`}>
                         
                         {printMode === "invoice" ? (
-                            <div className="p-6 md:p-12 text-slate-800 bg-white min-h-[1000px] flex flex-col">
+                            <div className="p-6 md:p-12 text-slate-800 bg-white min-h-[1000px] flex flex-col transition-colors">
                                 {/* Header */}
                                 <div className="flex justify-between items-start mb-12">
                                     <div className="flex gap-4 items-start">
@@ -146,45 +132,48 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
 
                                 {/* Table */}
                                 <div className="flex-1">
-                                    <table className="w-full">
+                                    <table className="w-full text-slate-800">
                                         <thead>
-                                            <tr className="border-b-2 border-slate-900 text-left text-slate-900">
-                                                <th className="py-4 text-[10px] font-black uppercase tracking-widest">Deskripsi Produk</th>
-                                                <th className="py-4 text-right text-[10px] font-black uppercase tracking-widest">Harga Satuan</th>
-                                                <th className="py-4 text-center text-[10px] font-black uppercase tracking-widest">Jumlah (Qty)</th>
-                                                <th className="py-4 text-right text-[10px] font-black uppercase tracking-widest">Total Harga</th>
+                                            <tr className="border-b-2 border-slate-900 text-left text-slate-900 uppercase">
+                                                <th className="py-4 text-[10px] font-black tracking-widest">Produk</th>
+                                                <th className="py-4 text-right text-[10px] font-black tracking-widest">Harga</th>
+                                                <th className="py-4 text-center text-[10px] font-black tracking-widest">Jumlah</th>
+                                                <th className="py-4 text-right text-[10px] font-black tracking-widest">Subtotal</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100 text-slate-700">
+                                        <tbody className="divide-y divide-slate-100">
                                             {details.map((item, i) => {
                                                 const unitPrice = item.price / item.qty;
                                                 const originalPrice = item.product?.sell_price || unitPrice;
                                                 const isDiscounted = originalPrice > unitPrice;
-                                                
-                                                // --- LOGIKA PRIORITAS SATUAN AGAR TIDAK MUNCUL PCS JIKA ADA SACHET ---
-                                                let currentUnit = "Pcs";
-                                                if (typeof item.unit === 'string' && item.unit.trim() !== "") {
-                                                    currentUnit = item.unit; // Ini akan mengambil "Sachet" dari DB
-                                                } else if (item.unit && typeof item.unit === 'object') {
-                                                    currentUnit = item.unit.unit_name || "Pcs";
-                                                }
+                                                const currentUnit = item.unit || item.product_unit?.unit_name || "Pcs";
 
                                                 return (
-                                                    <tr key={i}>
+                                                    <tr key={i} className="align-top">
                                                         <td className="py-5">
-                                                            <p className="font-bold text-slate-900 uppercase leading-tight mb-1">
-                                                                {item.product?.title}
+                                                            <p className="font-bold text-slate-900 uppercase leading-tight mb-1 flex items-center gap-1">
+                                                                {item.product?.title || item.product_title}
+                                                                {item.product?.type === 'bundle' && <IconBoxSeam size={14} className="text-purple-500" />}
                                                             </p>
-                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter bg-slate-50 px-2 py-0.5 rounded border border-slate-100 inline-block">
                                                                 Satuan: {String(currentUnit)}
                                                             </span>
+                                                            {item.product?.type === 'bundle' && item.product?.bundle_items?.length > 0 && (
+                                                                <div className="mt-2 ml-4 border-l-2 border-slate-200 pl-3 space-y-1">
+                                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Isi Paket:</p>
+                                                                    {item.product.bundle_items.map((bundle, bIdx) => (
+                                                                        <div key={bIdx} className="text-[10px] text-slate-500 flex justify-between italic max-w-[250px]">
+                                                                            <span>• {bundle.title}</span>
+                                                                            <span className="font-bold">x{parseFloat(bundle.pivot?.qty || 0) * parseFloat(item.qty)}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
                                                         </td>
                                                         <td className="py-5 text-right text-sm">
                                                             <div className="flex flex-col items-end">
                                                                 <span className="font-bold text-slate-700">{formatPrice(unitPrice)}</span>
-                                                                {isDiscounted && (
-                                                                    <span className="text-[10px] text-slate-400 line-through">{formatPrice(originalPrice)}</span>
-                                                                )}
+                                                                {isDiscounted && <span className="text-[10px] text-slate-400 line-through">{formatPrice(originalPrice)}</span>}
                                                             </div>
                                                         </td>
                                                         <td className="py-5 text-center text-sm font-black text-slate-900">
@@ -206,12 +195,12 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
                                             <span className="text-2xl font-black text-emerald-400">{formatPrice(transaction.grand_total)}</span>
                                         </div>
                                         <div className="mt-4 flex justify-between items-center text-slate-400">
-                                            <span className="text-[9px] font-bold uppercase">Bayar (Cash)</span>
-                                            <span className="text-xs font-bold">{formatPrice(transaction.cash)}</span>
+                                            <span className="text-[9px] font-bold uppercase">Cash</span>
+                                            <span className="text-xs font-bold">{formatPrice(transaction.cash || transaction.grand_total)}</span>
                                         </div>
                                         <div className="mt-1 flex justify-between items-center text-slate-400">
                                             <span className="text-[9px] font-bold uppercase">Kembali</span>
-                                            <span className="text-xs font-bold">{formatPrice(transaction.change)}</span>
+                                            <span className="text-xs font-bold">{formatPrice(transaction.change || 0)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -221,15 +210,27 @@ export default function Print({ transaction, receiptSetting, isPublic = false })
                                     <p className="text-xs text-slate-400 italic font-medium">"{storeFooter}"</p>
                                 </div>
                             </div>
-                        ) : (
-                            <div className="bg-white p-4 flex justify-center">
+                        ) : printMode === "thermal80" ? (
+                            <div className="bg-white p-4 flex justify-center min-h-[600px]">
                                 <ThermalReceipt 
                                     transaction={transaction} 
                                     storeName={storeName} 
                                     storeAddress={storeAddress} 
                                     storePhone={storePhone} 
                                     footerMessage={storeFooter} 
-                                    storeLogo={storeLogo} 
+                                    storeLogo={storeLogo}
+                                    qrisImage={qrisImage}
+                                />
+                            </div>
+                        ) : (
+                            <div className="bg-white p-4 flex justify-center min-h-[600px]">
+                                <ThermalReceipt58mm 
+                                    transaction={transaction} 
+                                    storeName={storeName} 
+                                    storePhone={storePhone} 
+                                    footerMessage={storeFooter} 
+                                    storeLogo={storeLogo}
+                                    qrisImage={qrisImage}
                                 />
                             </div>
                         )}

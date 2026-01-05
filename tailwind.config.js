@@ -25,21 +25,35 @@ export default {
                 ],
             },
             colors: {
-                // Primary - Indigo
+                // PRIMARY DIUBAH KE ROSE/PINK (Sesuai Gambar Referensi)
                 primary: {
-                    50: '#f2fbf9',
-                    100: '#d3f4ed',
-                    200: '#a7e8da',
-                    300: '#6fd3c2',
-                    400: '#47baab',
-                    500: '#2d9f91',
-                    600: '#227f76',
-                    700: '#1f6660',
-                    800: '#1d524e',
-                    900: '#1c4541',
-                    950: '#0b2828',
+                    50: "#fff1f2",
+                    100: "#ffe4e6",
+                    200: "#fecdd3",
+                    300: "#fda4af",
+                    400: "#fb7185",
+                    500: "#f43f5e", // Warna Utama Aksen
+                    600: "#e11d48", // Warna Hover
+                    700: "#be123c",
+                    800: "#9f1239",
+                    900: "#881337",
+                    950: "#4c0519",
                 },
-                // Accent - Cyan
+                // SLATE DIUBAH KE DARK ELEGANT (Background Sesuai Gambar)
+                slate: {
+                    50: "#f8fafc",
+                    100: "#f1f5f9",
+                    200: "#e2e8f0",
+                    300: "#cbd5e1",
+                    400: "#94a3b8",
+                    500: "#64748b",
+                    600: "#475569",
+                    700: "#334155",
+                    800: "#1e293b", 
+                    900: "#0f172a", // Sidebar / Card Background
+                    950: "#020617", // Dasar Background Web
+                },
+                // Warna tambahan lainnya tetap dipertahankan
                 accent: {
                     50: "#ecfeff",
                     100: "#cffafe",
@@ -53,7 +67,6 @@ export default {
                     900: "#164e63",
                     950: "#083344",
                 },
-                // Success - Emerald
                 success: {
                     50: "#ecfdf5",
                     100: "#d1fae5",
@@ -67,7 +80,6 @@ export default {
                     900: "#064e3b",
                     950: "#022c22",
                 },
-                // Warning - Amber
                 warning: {
                     50: "#fffbeb",
                     100: "#fef3c7",
@@ -81,7 +93,6 @@ export default {
                     900: "#78350f",
                     950: "#451a03",
                 },
-                // Danger - Rose
                 danger: {
                     50: "#fff1f2",
                     100: "#ffe4e6",
@@ -104,8 +115,8 @@ export default {
                 128: "32rem",
             },
             minHeight: {
-                touch: "2.75rem", // 44px - minimum touch target
-                "touch-lg": "3rem", // 48px - comfortable touch target
+                touch: "2.75rem",
+                "touch-lg": "3rem",
             },
             minWidth: {
                 touch: "2.75rem",
@@ -115,18 +126,17 @@ export default {
                 "4xl": "2rem",
             },
             boxShadow: {
-                glow: "0 0 20px rgba(99, 102, 241, 0.3)",
-                "glow-lg": "0 0 40px rgba(99, 102, 241, 0.4)",
+                // GLOW DISESUAIKAN KE WARNA ROSE (Primary)
+                glow: "0 0 20px rgba(244, 63, 94, 0.3)",
+                "glow-lg": "0 0 40px rgba(244, 63, 94, 0.4)",
                 "inner-lg": "inset 0 4px 6px -1px rgb(0 0 0 / 0.1)",
             },
             animation: {
                 "slide-in": "slideIn 0.2s ease-out",
                 "slide-up": "slideUp 0.2s ease-out",
                 "fade-in": "fadeIn 0.15s ease-out",
-                "pulse-subtle":
-                    "pulseSubtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                "bounce-subtle":
-                    "bounceSubtle 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                "pulse-subtle": "pulseSubtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                "bounce-subtle": "bounceSubtle 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
                 "cart-add": "cartAdd 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
             },
             keyframes: {

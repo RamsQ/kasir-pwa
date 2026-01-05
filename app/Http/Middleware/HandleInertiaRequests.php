@@ -4,8 +4,8 @@ namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
 use Inertia\Middleware;
-use App\Models\Product;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -13,31 +13,35 @@ class HandleInertiaRequests extends Middleware
 
     public function share(Request $request): array
     {
-        // Debugging Sederhana
         $lowStock = 0;
         $expired = 0;
+        $permissions = []; // Default kosong
 
         if ($request->user()) {
-            // Gunakan DB langsung untuk menghindari masalah Model Namespace jika ada
+            // 1. Notifikasi Stok & Expired
             $lowStock = DB::table('products')->where('stock', '<=', 5)->count();
             
-            // Cek apakah kolom expired_date ada
-            if (\Illuminate\Support\Facades\Schema::hasColumn('products', 'expired_date')) {
+            if (Schema::hasColumn('products', 'expired_date')) {
                 $expired = DB::table('products')
                     ->whereNotNull('expired_date')
                     ->whereDate('expired_date', '<=', now()->addDays(7))
                     ->count();
             }
+
+            // 2. AMBIL PERMISSIONS DAN UBAH KE FORMAT KEY-VALUE
+            // Format yang diharapkan Utils/Permission.jsx: { 'name.permission': true }
+            $permissions = $request->user()->getAllPermissions()->pluck('name')->mapWithKeys(function ($name) {
+                return [$name => true];
+            })->toArray();
         }
 
         return array_merge(parent::share($request), [
             'auth' => [
                 'user' => $request->user(),
-                'permissions' => $request->user() ? $request->user()->getPermissions() : [],
+                'permissions' => $permissions, // Data sudah dalam format { 'key': true }
                 'super' => $request->user() ? $request->user()->isSuperAdmin() : false,
             ],
 
-            // PASTIKAN KEY INI ADA
             'notifications' => [
                 'low_stock_count' => (int) $lowStock,
                 'expired_count'   => (int) $expired,

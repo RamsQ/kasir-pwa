@@ -1,400 +1,216 @@
+import { useEffect, useState, useRef } from "react";
 import { Head, Link } from "@inertiajs/react";
 import {
-    IconShoppingCart,
-    IconReceipt,
-    IconUsers,
-    IconChartBar,
-    IconBox,
-    IconBrandGithub,
-    IconArrowRight,
-    IconCheck,
-    IconDeviceMobile,
-    IconCloudLock,
-    IconReportMoney,
+    IconShoppingCart, IconDiamond, IconArrowUpRight, IconCrown, 
+    IconSun, IconMoon, IconFingerprint, IconWorld, IconBolt,
+    IconCurrencyDollar, IconCertificate, IconShieldLock, IconMathFunction
 } from "@tabler/icons-react";
 
 export default function Welcome() {
-    const features = [
-        {
-            icon: IconShoppingCart,
-            title: "Transaksi Cepat",
-            desc: "Proses jual beli dalam hitungan detik",
-        },
-        {
-            icon: IconReceipt,
-            title: "Cetak Struk",
-            desc: "Print thermal 58mm, 80mm, dan invoice",
-        },
-        {
-            icon: IconUsers,
-            title: "Pelanggan & History",
-            desc: "Kelola data pelanggan dan riwayat",
-        },
-        {
-            icon: IconBox,
-            title: "Inventori Produk",
-            desc: "Stok, kategori, dan barcode scanner",
-        },
-        {
-            icon: IconChartBar,
-            title: "Laporan Lengkap",
-            desc: "Penjualan, keuntungan, dan grafik",
-        },
-        {
-            icon: IconReportMoney,
-            title: "Multi Payment",
-            desc: "Tunai, QRIS, dan Midtrans",
-        },
-    ];
+    const [isDark, setIsDark] = useState(true);
+    const [scrolled, setScrolled] = useState(false);
 
-    const techStack = [
-        { name: "Laravel 12", color: "bg-red-500" },
-        { name: "Inertia.js", color: "bg-purple-500" },
-        { name: "React", color: "bg-cyan-500" },
-        { name: "TailwindCSS", color: "bg-sky-500" },
-        { name: "MySQL", color: "bg-orange-500" },
-    ];
+    useEffect(() => {
+        const savedTheme = localStorage.getItem("theme") || "dark";
+        setIsDark(savedTheme === "dark");
+        document.documentElement.classList.toggle("dark", savedTheme === "dark");
+
+        const handleScroll = () => setScrolled(window.scrollY > 20);
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
+
+    const toggleTheme = () => {
+        const newTheme = !isDark;
+        setIsDark(newTheme);
+        document.documentElement.classList.toggle("dark", newTheme);
+        localStorage.setItem("theme", newTheme ? "dark" : "light");
+    };
 
     return (
-        <>
-            <Head title="Aplikasi Kasir - Point of Sale Modern" />
+        <div className="min-h-screen bg-[#fafafa] dark:bg-[#050505] text-[#1a1a1a] dark:text-[#e5e5e5] transition-colors duration-1000 overflow-x-hidden font-sans selection:bg-rose-500/30">
+            <Head title="AuraPOS — The Obsidian Reserve" />
 
-            <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-                {/* Navbar */}
-                <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800">
-                    <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
-                                <IconShoppingCart
-                                    size={22}
-                                    className="text-white"
-                                />
-                            </div>
-                            <span className="text-xl font-bold text-slate-900 dark:text-white">
-                                Aplikasi Kasir
-                            </span>
-                        </div>
-
-                        <div className="hidden md:flex items-center gap-8">
-                            <a
-                                href="#features"
-                                className="text-sm text-slate-600 dark:text-slate-400 hover:text-primary-500 transition-colors"
-                            >
-                                Fitur
-                            </a>
-                            <a
-                                href="#tech"
-                                className="text-sm text-slate-600 dark:text-slate-400 hover:text-primary-500 transition-colors"
-                            >
-                                Teknologi
-                            </a>
-                            <a
-                                href="#install"
-                                className="text-sm text-slate-600 dark:text-slate-400 hover:text-primary-500 transition-colors"
-                            >
-                                Instalasi
-                            </a>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                            <Link
-                                href="/login"
-                                className="px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-primary-500 transition-colors"
-                            >
-                                Masuk
-                            </Link>
-                            <Link
-                                href="/register"
-                                className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl hover:from-primary-600 hover:to-primary-700 shadow-lg shadow-primary-500/25 transition-all"
-                            >
-                                Daftar Gratis
-                            </Link>
-                        </div>
-                    </div>
-                </nav>
-
-                {/* Hero Section */}
-                <section className="pt-32 pb-20 px-6">
-                    <div className="max-w-7xl mx-auto">
-                        <div className="text-center max-w-4xl mx-auto">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-50 dark:bg-primary-950/50 text-primary-600 dark:text-primary-400 text-sm font-medium mb-6">
-                                <IconDeviceMobile size={16} />
-                                Responsive & Mobile-Friendly
-                            </div>
-
-                            <h1 className="text-5xl md:text-6xl font-extrabold text-slate-900 dark:text-white leading-tight">
-                                Sistem Point of Sale
-                                <span className="block mt-2 bg-gradient-to-r from-primary-500 to-primary-600 bg-clip-text text-transparent">
-                                    Modern & Mudah Digunakan
-                                </span>
-                            </h1>
-
-                            <p className="mt-6 text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-                                Aplikasi kasir berbasis web untuk warung & toko
-                                kecil–menengah. Mendukung pencatatan transaksi,
-                                laporan, manajemen produk, pelanggan, dan banyak
-                                lagi.
-                            </p>
-
-                            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-                                <Link
-                                    href="/register"
-                                    className="w-full sm:w-auto px-8 py-4 text-base font-semibold text-white bg-gradient-to-r from-primary-500 to-primary-600 rounded-2xl hover:from-primary-600 hover:to-primary-700 shadow-xl shadow-primary-500/30 transition-all flex items-center justify-center gap-2"
-                                >
-                                    Mulai Sekarang
-                                    <IconArrowRight size={20} />
-                                </Link>
-                                <a
-                                    href="https://github.com/aryadwiputra/point-of-sales"
-                                    target="_blank"
-                                    className="w-full sm:w-auto px-8 py-4 text-base font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl hover:border-primary-300 dark:hover:border-primary-700 transition-all flex items-center justify-center gap-2"
-                                >
-                                    <IconBrandGithub size={20} />
-                                    View Repository
-                                </a>
-                            </div>
-                        </div>
-
-                        {/* Dashboard Preview */}
-                        <div className="mt-16 relative">
-                            <div className="absolute inset-0 bg-gradient-to-t from-slate-50 dark:from-slate-950 to-transparent z-10 pointer-events-none h-32 bottom-0 top-auto" />
-                            <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl bg-white dark:bg-slate-900">
-                                <div className="bg-slate-100 dark:bg-slate-800 px-4 py-3 flex items-center gap-2">
-                                    <div className="flex gap-2">
-                                        <div className="w-3 h-3 rounded-full bg-red-400" />
-                                        <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                                        <div className="w-3 h-3 rounded-full bg-green-400" />
-                                    </div>
-                                    <div className="flex-1 text-center text-xs text-slate-500">
-                                        dashboard.aplikasikasir.com
-                                    </div>
-                                </div>
-                                <img
-                                    src="/media/revamp-pos.png"
-                                    alt="Preview POS Dashboard"
-                                    className="w-full"
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                {/* Version Comparison */}
-                <section className="py-20 px-6 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
-                    <div className="max-w-7xl mx-auto">
-                        <div className="text-center mb-12">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-100 dark:bg-primary-950 text-primary-600 dark:text-primary-400 text-sm font-medium mb-4">
-                                <IconArrowRight size={16} />
-                                Before & After
-                            </div>
-                            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white">
-                                Perjalanan Evolusi
-                            </h2>
-                            <p className="mt-4 text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-                                Dari versi pertama hingga redesign modern dengan
-                                UI/UX yang lebih baik
-                            </p>
-                        </div>
-
-                        {/* Comparison Grid */}
-                        <div className="grid md:grid-cols-2 gap-8">
-                            {/* V1 */}
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-center gap-2 text-slate-500 dark:text-slate-400">
-                                    <span className="px-3 py-1 bg-slate-200 dark:bg-slate-700 rounded-full text-sm font-medium">
-                                        Version 1.0
-                                    </span>
-                                </div>
-                                <div className="rounded-xl overflow-hidden border border-slate-300 dark:border-slate-600 shadow-lg">
-                                    <img
-                                        src="/media/readme-pos.png"
-                                        alt="POS V1"
-                                        className="w-full"
-                                    />
-                                </div>
-                                <div className="rounded-xl overflow-hidden border border-slate-300 dark:border-slate-600 shadow-lg">
-                                    <img
-                                        src="/media/readme-dashboard.png"
-                                        alt="Dashboard V1"
-                                        className="w-full"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Revamp */}
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-center gap-2">
-                                    <span className="px-3 py-1 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-full text-sm font-medium">
-                                        ✨ Revamp 2.0
-                                    </span>
-                                </div>
-                                <div className="rounded-xl overflow-hidden border-2 border-primary-500 shadow-lg shadow-primary-500/20">
-                                    <img
-                                        src="/media/revamp-pos.png"
-                                        alt="POS Revamp"
-                                        className="w-full"
-                                    />
-                                </div>
-                                <div className="rounded-xl overflow-hidden border-2 border-primary-500 shadow-lg shadow-primary-500/20">
-                                    <img
-                                        src="/media/revamp-dashboard.png"
-                                        alt="Dashboard Revamp"
-                                        className="w-full"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                {/* Features Section */}
-                <section
-                    id="features"
-                    className="py-20 px-6 bg-white dark:bg-slate-900"
-                >
-                    <div className="max-w-7xl mx-auto">
-                        <div className="text-center mb-16">
-                            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white">
-                                Fitur Lengkap
-                            </h2>
-                            <p className="mt-4 text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-                                Semua yang Anda butuhkan untuk mengelola bisnis
-                                retail dalam satu aplikasi
-                            </p>
-                        </div>
-
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {features.map((feature, i) => (
-                                <div
-                                    key={i}
-                                    className="group p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 hover:border-primary-200 dark:hover:border-primary-800 transition-all"
-                                >
-                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                        <feature.icon
-                                            size={24}
-                                            className="text-white"
-                                        />
-                                    </div>
-                                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-                                        {feature.title}
-                                    </h3>
-                                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                                        {feature.desc}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-
-                {/* Tech Stack */}
-                <section id="tech" className="py-20 px-6">
-                    <div className="max-w-7xl mx-auto text-center">
-                        <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">
-                            Tech Stack
-                        </h2>
-                        <p className="text-slate-600 dark:text-slate-400 mb-12">
-                            Dibangun dengan teknologi modern yang cepat dan
-                            stabil
-                        </p>
-
-                        <div className="flex flex-wrap justify-center gap-4">
-                            {techStack.map((tech, i) => (
-                                <div
-                                    key={i}
-                                    className="flex items-center gap-3 px-6 py-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700"
-                                >
-                                    <div
-                                        className={`w-3 h-3 rounded-full ${tech.color}`}
-                                    />
-                                    <span className="font-medium text-slate-700 dark:text-slate-300">
-                                        {tech.name}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-
-                {/* Installation */}
-                <section
-                    id="install"
-                    className="py-20 px-6 bg-white dark:bg-slate-900"
-                >
-                    <div className="max-w-4xl mx-auto">
-                        <div className="text-center mb-12">
-                            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white">
-                                Panduan Instalasi
-                            </h2>
-                            <p className="mt-4 text-slate-600 dark:text-slate-400">
-                                Clone repository dan jalankan dalam hitungan
-                                menit
-                            </p>
-                        </div>
-
-                        <div className="bg-slate-900 dark:bg-slate-800 rounded-2xl p-6 overflow-hidden">
-                            <pre className="text-sm text-slate-300 font-mono overflow-x-auto">
-                                {`git clone https://github.com/aryadwiputra/point-of-sales
-cd point-of-sales
-composer install
-npm install
-cp .env.example .env
-php artisan key:generate
-
-# Setup database di .env
-
-php artisan migrate --seed
-php artisan storage:link
-npm run dev
-php artisan serve`}
-                            </pre>
-                        </div>
-                    </div>
-                </section>
-
-                {/* CTA */}
-                <section className="py-20 px-6">
-                    <div className="max-w-4xl mx-auto text-center">
-                        <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-3xl p-12 text-white">
-                            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                                Siap Memulai?
-                            </h2>
-                            <p className="text-lg opacity-90 mb-8">
-                                Daftarkan bisnis Anda sekarang dan rasakan
-                                kemudahannya
-                            </p>
-                            <Link
-                                href="/register"
-                                className="inline-flex items-center gap-2 px-8 py-4 bg-white text-primary-600 font-semibold rounded-2xl hover:bg-slate-50 transition-colors"
-                            >
-                                Daftar Gratis Sekarang
-                                <IconArrowRight size={20} />
-                            </Link>
-                        </div>
-                    </div>
-                </section>
-
-                {/* Footer */}
-                <footer className="py-8 px-6 border-t border-slate-200 dark:border-slate-800">
-                    <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
-                                <IconShoppingCart
-                                    size={16}
-                                    className="text-white"
-                                />
-                            </div>
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">
-                                Aplikasi Kasir
-                            </span>
-                        </div>
-                        <p className="text-sm text-slate-500">
-                            © {new Date().getFullYear()} Dibuat oleh Arya Dwi
-                            Putra
-                        </p>
-                    </div>
-                </footer>
+            {/* --- CINEMATIC OVERLAY EFFECTS --- */}
+            <div className="fixed inset-0 pointer-events-none z-0">
+                <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_-20%,#fb718515,transparent_50%)]" />
+                <div className="absolute inset-0 opacity-[0.015] dark:opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.4' fill-rule='evenodd'%3E%3Ccircle cx='3' cy='3' r='3'/%3E%3C/g%3E%3C/svg%3E")` }} />
             </div>
-        </>
+
+            {/* --- ARCHITECTURAL NAVIGATION --- */}
+            <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-700 ${scrolled ? 'h-20 bg-white/70 dark:bg-[#050505]/70 backdrop-blur-3xl border-b border-black/5 dark:border-white/5' : 'h-32 bg-transparent'}`}>
+                <div className="max-w-[1600px] mx-auto px-12 h-full flex items-center justify-between">
+                    <div className="flex items-center gap-6 group cursor-pointer">
+                        <div className="w-12 h-12 bg-black dark:bg-white rounded-full flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform duration-500">
+                            <IconDiamond size={24} className="text-white dark:text-black" />
+                        </div>
+                        <div className="flex flex-col leading-none">
+                            <span className="text-2xl font-black tracking-[0.3em] uppercase italic">Aura<span className="text-rose-600">POS</span></span>
+                            <span className="text-[8px] font-bold tracking-[0.6em] uppercase opacity-50">Reserve Collection</span>
+                        </div>
+                    </div>
+
+                    <div className="hidden xl:flex items-center gap-16 text-[10px] font-black uppercase tracking-[0.4em] opacity-40 hover:opacity-100 transition-opacity">
+                        <a href="#" className="hover:text-rose-600 transition-colors">Heritage</a>
+                        <a href="#" className="hover:text-rose-600 transition-colors">Bento v2</a>
+                        <a href="#" className="hover:text-rose-600 transition-colors">Encrypted</a>
+                    </div>
+
+                    <div className="flex items-center gap-8">
+                        <button onClick={toggleTheme} className="opacity-50 hover:opacity-100 transition-opacity">
+                            {isDark ? <IconSun size={20} stroke={1.5} /> : <IconMoon size={20} stroke={1.5} />}
+                        </button>
+                        <Link href="/login" className="text-[10px] font-black uppercase tracking-[0.3em]">Sign In</Link>
+                        <Link href="/register" className="relative group px-10 py-4 bg-black dark:bg-white text-white dark:text-black text-[10px] font-black uppercase tracking-[0.3em] rounded-full overflow-hidden transition-all shadow-2xl active:scale-95">
+                            <div className="absolute inset-0 bg-rose-600 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                            <span className="relative z-10 group-hover:text-white transition-colors">Request Access</span>
+                        </Link>
+                    </div>
+                </div>
+            </nav>
+
+            {/* --- HERO: THE OBSIDIAN ARCHIVE --- */}
+            <section className="relative pt-64 pb-48 px-12">
+                <div className="max-w-[1400px] mx-auto">
+                    <div className="flex flex-col items-start text-left mb-32">
+                        <div className="flex items-center gap-4 text-rose-600 mb-10 overflow-hidden">
+                            <div className="h-[1px] w-20 bg-rose-600" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.8em]">Beyond Transactional</span>
+                        </div>
+
+                        <h1 className="text-8xl md:text-[160px] font-black leading-[0.75] tracking-[-0.06em] uppercase italic mb-16">
+                            The New <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 via-rose-300 to-slate-400">Statement.</span>
+                        </h1>
+
+                        <div className="flex flex-col md:flex-row items-end gap-20">
+                            <p className="max-w-md text-xl text-slate-500 font-light leading-relaxed tracking-tight italic">
+                                Crafted for those who demand nothing less than perfection. An ecosystem where aesthetics meet mathematical precision.
+                            </p>
+                            <Link href="/register" className="flex items-center gap-4 group">
+                                <span className="w-20 h-20 rounded-full border border-black/10 dark:border-white/10 flex items-center justify-center group-hover:bg-rose-600 group-hover:border-rose-600 transition-all duration-700">
+                                    <IconArrowUpRight size={32} className="group-hover:text-white transition-colors" />
+                                </span>
+                                <span className="text-[10px] font-black uppercase tracking-[0.4em]">Initialize Enterprise</span>
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* HERO VISUAL MASK */}
+                    <div className="relative group overflow-hidden rounded-[4rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] border border-black/5 dark:border-white/5">
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 z-10" />
+                        <img 
+                            src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=2000" 
+                            className="w-full h-[800px] object-cover transition-transform duration-[3s] group-hover:scale-110"
+                            alt="Luxury Workspace"
+                        />
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 text-center opacity-0 group-hover:opacity-100 transition-opacity duration-1000">
+                            <div className="w-24 h-24 bg-white/10 backdrop-blur-3xl rounded-full flex items-center justify-center mx-auto mb-6">
+                                <IconBolt size={40} className="text-white" />
+                            </div>
+                            <span className="text-white font-black text-[10px] uppercase tracking-[1em]">Press to Inspect</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* --- BENTO LUXURY CLOUD --- */}
+            <section className="py-48 bg-black">
+                <div className="max-w-[1400px] mx-auto px-12 text-white">
+                    <div className="grid grid-cols-1 lg:grid-cols-6 gap-8 auto-rows-[400px]">
+                        {/* Card 1: Intelligence */}
+                        <div className="lg:col-span-3 rounded-[3.5rem] bg-[#0a0a0a] border border-white/5 p-16 flex flex-col justify-between group overflow-hidden relative">
+                            <div className="z-10">
+                                <IconMathFunction size={50} className="text-rose-600 mb-10" />
+                                <h3 className="text-5xl font-black italic tracking-tighter uppercase mb-6 leading-none">Computational <br /> Mastery.</h3>
+                                <p className="text-slate-500 max-w-xs text-lg font-light">Algoritma prediktif yang menghitung setiap pergerakan inventaris Anda secara absolut.</p>
+                            </div>
+                            <img src="https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&q=80&w=800" className="absolute bottom-0 right-0 w-2/3 opacity-20 group-hover:opacity-40 transition-opacity duration-1000 translate-y-1/4" />
+                        </div>
+
+                        {/* Card 2: Security */}
+                        <div className="lg:col-span-3 rounded-[3.5rem] bg-[#0a0a0a] border border-white/5 p-16 flex flex-col justify-between group overflow-hidden relative">
+                            <div className="z-10">
+                                <IconShieldLock size={50} className="text-rose-600 mb-10" />
+                                <h3 className="text-5xl font-black italic tracking-tighter uppercase mb-6 leading-none">The Vault <br /> Infrastructure.</h3>
+                                <p className="text-slate-500 max-w-xs text-lg font-light">Standar enkripsi yang digunakan oleh institusi keuangan global kini tersedia di toko Anda.</p>
+                            </div>
+                            <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-rose-600/10 blur-[100px] rounded-full" />
+                        </div>
+
+                        {/* Card 3: Global */}
+                        <div className="lg:col-span-2 rounded-[3.5rem] bg-[#0a0a0a] border border-white/5 p-12 text-center flex flex-col items-center justify-center group">
+                            <IconWorld size={80} stroke={0.5} className="text-rose-600 mb-8 animate-spin-slow" />
+                            <h4 className="text-sm font-black uppercase tracking-[0.5em] mb-4">Borderless Flow</h4>
+                            <p className="text-slate-500 font-light italic">Sync without borders.</p>
+                        </div>
+
+                        {/* Card 4: Hardware Integration */}
+                        <div className="lg:col-span-4 rounded-[3.5rem] bg-[#0a0a0a] border border-white/5 p-12 flex items-center justify-between group overflow-hidden">
+                            <div className="max-w-md">
+                                <h4 className="text-3xl font-black italic uppercase mb-6">Hardware Synergy.</h4>
+                                <p className="text-slate-500 text-lg font-light italic leading-relaxed">Kompatibilitas tanpa celah dengan perangkat thermal premium dan ekosistem scanner kelas dunia.</p>
+                            </div>
+                            <IconCertificate size={120} stroke={0.2} className="text-rose-600/20 group-hover:text-rose-600/50 transition-colors duration-1000" />
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* --- THE PRESTIGE CTA --- */}
+            <section className="py-64 text-center relative overflow-hidden bg-white dark:bg-transparent">
+                <div className="max-w-5xl mx-auto relative z-10 px-12">
+                    <h2 className="text-[120px] font-black text-slate-900 dark:text-white tracking-[-0.08em] mb-20 leading-none italic uppercase">
+                        Own the <span className="text-rose-600">Aura.</span>
+                    </h2>
+                    <Link href="/register" className="inline-block px-24 py-10 bg-black dark:bg-white text-white dark:text-black font-black uppercase tracking-[0.6em] text-[12px] rounded-full hover:shadow-[0_40px_100px_-20px_rgba(225,29,72,0.4)] hover:bg-rose-600 dark:hover:bg-rose-600 hover:text-white transition-all duration-700 active:scale-90">
+                        Secure Membership
+                    </Link>
+                </div>
+                <div className="absolute top-1/2 left-0 w-full h-[1px] bg-black/5 dark:bg-white/5" />
+            </section>
+
+            {/* --- THE RESERVE FOOTER --- */}
+            <footer className="py-32 bg-[#0a0a0a] text-white px-12 border-t border-white/5">
+                <div className="max-w-[1400px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-24">
+                    <div className="md:col-span-2">
+                        <div className="flex items-center gap-4 mb-10">
+                            <IconDiamond size={32} className="text-rose-600" />
+                            <span className="text-3xl font-black tracking-[0.4em] uppercase italic">Aura Reserve</span>
+                        </div>
+                        <p className="text-slate-500 text-xl font-light italic max-w-md mb-12 leading-relaxed">Masa depan ritel bukan hanya tentang data, tapi tentang perasaan eksklusivitas di setiap detik transaksi.</p>
+                    </div>
+                    
+                    <div>
+                        <h5 className="text-[10px] font-black text-rose-600 uppercase tracking-[0.6em] mb-10">Core Identity</h5>
+                        <ul className="space-y-6 text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 italic">
+                            <li className="hover:text-white cursor-pointer transition-colors">Heritage Archive</li>
+                            <li className="hover:text-white cursor-pointer transition-colors">Mathematics</li>
+                            <li className="hover:text-white cursor-pointer transition-colors">Global Node</li>
+                        </ul>
+                    </div>
+
+                    <div className="text-right flex flex-col justify-between">
+                        <h5 className="text-[10px] font-black text-rose-600 uppercase tracking-[0.6em]">Geneva • London • Jakarta</h5>
+                        <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.5em] pt-20">© {new Date().getFullYear()} Aura Reserve Int. All Rights Reserved.</p>
+                    </div>
+                </div>
+            </footer>
+
+            <style>{`
+                @keyframes spin-slow {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                .animate-spin-slow {
+                    animation: spin-slow 20s linear infinite;
+                }
+                html { scroll-behavior: smooth; }
+                h1, h2, h3, .font-black {
+                    font-family: 'Inter', sans-serif;
+                    letter-spacing: -0.04em;
+                }
+            `}</style>
+        </div>
     );
 }

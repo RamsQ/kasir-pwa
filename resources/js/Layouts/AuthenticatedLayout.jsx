@@ -1,59 +1,99 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import { Link, usePage } from '@inertiajs/react';
 import Notification from '@/Components/Dashboard/Notification'; 
+import hasAnyPermission from '@/Utils/Permission'; // Import helper permission
 
 export default function Authenticated({ user, header, children }) {
     const [showingNavigationDropdown, setShowingNavigationDropdown] = useState(false);
     
-    // Props notifications dari HandleInertiaRequests.php
+    // --- LOGIKA DARK MODE (Fitur Tetap Ada) ---
+    const [isDark, setIsDark] = useState(false);
+
+    useEffect(() => {
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            setIsDark(true);
+            document.documentElement.classList.add('dark');
+        } else {
+            setIsDark(false);
+            document.documentElement.classList.remove('dark');
+        }
+    }, []);
+
+    const toggleTheme = () => {
+        if (isDark) {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+            setIsDark(false);
+        } else {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+            setIsDark(true);
+        }
+    };
+    // ------------------------------------------
+
     const { notifications } = usePage().props;
 
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-slate-950 transition-colors duration-300">
-            {/* Toast dihapus karena menyebabkan error Failed to resolve import */}
-            
             <nav className="bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 shadow-sm sticky top-0 z-40">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         <div className="flex">
-                            {/* Logo Section */}
                             <div className="shrink-0 flex items-center">
                                 <Link href="/">
                                     <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800 dark:text-white" />
                                 </Link>
                             </div>
 
-                            {/* Desktop Navigation */}
+                            {/* Desktop Navigation dengan Proteksi Hak Akses */}
                             <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex text-slate-900 dark:text-slate-100">
                                 <NavLink href={route('dashboard')} active={route().current('dashboard')}>
                                     Dashboard
                                 </NavLink>
-                                <NavLink href={route('stock_opnames.index')} active={route().current('stock_opnames.*')}>
-                                    Stock Opname
-                                </NavLink>
+
+                                {hasAnyPermission(['stock_opnames.index']) && (
+                                    <NavLink href={route('stock_opnames.index')} active={route().current('stock_opnames.*')}>
+                                        Stock Opname
+                                    </NavLink>
+                                )}
                                 
-                                {/* MENU: LAPORAN KEUANGAN */}
-                                <NavLink href={route('report.finance')} active={route().current('report.finance')}>
-                                    Laporan Keuangan
-                                </NavLink>
+                                {hasAnyPermission(['report.finance']) && (
+                                    <NavLink href={route('report.finance')} active={route().current('report.finance')}>
+                                        Laporan Keuangan
+                                    </NavLink>
+                                )}
                             </div>
                         </div>
 
-                        {/* Right Side Header (Desktop) */}
                         <div className="hidden sm:flex sm:items-center sm:ms-6 gap-2">
                             
-                            {/* KOMPONEN NOTIFIKASI LONCENG */}
+                            {/* TOMBOL DARK MODE SWITCHER */}
+                            <button 
+                                onClick={toggleTheme}
+                                className="p-2 rounded-lg text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                                {isDark ? (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+                                    </svg>
+                                ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                    </svg>
+                                )}
+                            </button>
+
                             <Notification />
 
                             <div className="ms-3 relative">
                                 <Dropdown>
                                     <Dropdown.Trigger>
                                         <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-gray-500 dark:text-slate-400 bg-white dark:bg-slate-900 hover:text-gray-700 dark:hover:text-white focus:outline-none transition ease-in-out duration-150">
-                                            {/* Inisial Profil */}
                                             <div className="h-8 w-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold mr-2 uppercase shadow-sm">
                                                 {user.name.substring(0, 2)}
                                             </div>
@@ -78,8 +118,11 @@ export default function Authenticated({ user, header, children }) {
                             </div>
                         </div>
                         
-                        {/* Mobile view Controls */}
                         <div className="-me-2 flex items-center sm:hidden gap-3">
+                            {/* Dark Mode Mobile */}
+                            <button onClick={toggleTheme} className="p-2 text-gray-500 dark:text-slate-400">
+                                {isDark ? '☀️' : '🌙'}
+                            </button>
                             <Notification />
                             
                             <button 
@@ -95,18 +138,24 @@ export default function Authenticated({ user, header, children }) {
                     </div>
                 </div>
 
-                {/* Mobile Responsive Navigation Menu */}
+                {/* Mobile Responsive Menu dengan Proteksi Hak Akses */}
                 <div className={(showingNavigationDropdown ? 'block' : 'hidden') + ' sm:hidden bg-white dark:bg-slate-900 border-t dark:border-slate-800'}>
                     <div className="pt-2 pb-3 space-y-1">
                         <ResponsiveNavLink href={route('dashboard')} active={route().current('dashboard')}>
                             Dashboard
                         </ResponsiveNavLink>
-                        <ResponsiveNavLink href={route('stock_opnames.index')} active={route().current('stock_opnames.*')}>
-                            Stock Opname
-                        </ResponsiveNavLink>
-                        <ResponsiveNavLink href={route('report.finance')} active={route().current('report.finance')}>
-                            Laporan Keuangan
-                        </ResponsiveNavLink>
+
+                        {hasAnyPermission(['stock_opnames.index']) && (
+                            <ResponsiveNavLink href={route('stock_opnames.index')} active={route().current('stock_opnames.*')}>
+                                Stock Opname
+                            </ResponsiveNavLink>
+                        )}
+
+                        {hasAnyPermission(['report.finance']) && (
+                            <ResponsiveNavLink href={route('report.finance')} active={route().current('report.finance')}>
+                                Laporan Keuangan
+                            </ResponsiveNavLink>
+                        )}
                     </div>
 
                     <div className="pt-4 pb-1 border-t border-gray-200 dark:border-slate-800">
@@ -125,7 +174,6 @@ export default function Authenticated({ user, header, children }) {
                 </div>
             </nav>
 
-            {/* Page Header */}
             {header && (
                 <header className="bg-white dark:bg-slate-900 shadow-sm transition-colors duration-300">
                     <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
@@ -136,7 +184,6 @@ export default function Authenticated({ user, header, children }) {
                 </header>
             )}
 
-            {/* Main Content Area */}
             <main className="py-12">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
                     {children}
