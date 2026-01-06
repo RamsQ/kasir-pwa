@@ -5,10 +5,10 @@ namespace App\Http\Controllers\Apps;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\StockOpname;
+use App\Models\Expense; // Import model Expense
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
-// Import tambahan untuk Excel
 use App\Exports\StockOpnameExport;
 use App\Imports\StockOpnameImport;
 use Maatwebsite\Excel\Facades\Excel;
@@ -20,9 +20,8 @@ class StockOpnameController extends Controller
      */
     public function index(Request $request)
     {
-        // [1] Ambil data produk untuk tabel input masal
         $products = Product::where('type', 'single')
-            ->select('id', 'title', 'stock', 'barcode')
+            ->select('id', 'title', 'stock', 'barcode', 'buy_price')
             ->when($request->search, function($query, $search) {
                 $query->where('title', 'like', '%' . $search . '%')
                       ->orWhere('barcode', 'like', '%' . $search . '%');
@@ -31,11 +30,6 @@ class StockOpnameController extends Controller
             ->paginate(10, ['*'], 'products_page')
             ->withQueryString();
 
-        /**
-         * [2] Ambil data riwayat (Laporan) dengan filter tanggal
-         * Menggunakan with(['user' => fn($q) => $q->withTrashed()]) 
-         * agar petugas yang sudah dihapus (Soft Delete) tetap muncul namanya.
-         */
         $history = StockOpname::with([
                 'product', 
                 'user' => function($query) {
@@ -60,11 +54,10 @@ class StockOpnameController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage (Bulk Update dari Tabel).
+     * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
-        // Validasi array adjustments
         $request->validate([
             'adjustments' => 'required|array',
             'adjustments.*.product_id' => 'required|exists:products,id',
@@ -72,10 +65,8 @@ class StockOpnameController extends Controller
             'adjustments.*.reason' => 'nullable|string|max:255',
         ]);
 
-        // Gunakan Database Transaction agar data aman
         DB::transaction(function () use ($request) {
             foreach ($request->adjustments as $item) {
-                // Hanya eksekusi jika stock_actual diisi (tidak null atau kosong)
                 if (isset($item['stock_actual']) && $item['stock_actual'] !== '') {
                     
                     $product = Product::lockForUpdate()->findOrFail($item['product_id']);
@@ -84,10 +75,9 @@ class StockOpnameController extends Controller
                     $stockActual = (int)$item['stock_actual'];
                     $difference  = $stockActual - $stockSystem;
 
-                    // Skip jika tidak ada perubahan angka sama sekali
                     if ($difference === 0) continue;
 
-                    // 1. Simpan Riwayat Stock Opname per item
+                    // 1. Simpan Riwayat Stock Opname
                     StockOpname::create([
                         'product_id'   => $product->id,
                         'user_id'      => auth()->id(),
@@ -97,7 +87,23 @@ class StockOpnameController extends Controller
                         'reason'       => $item['reason'] ?? 'Bulk Opname (Tabel)',
                     ]);
 
-                    // 2. Update Stok Produk ke angka fisik terbaru
+                    // [OTOMATISASI KEUANGAN]
+                    if ($difference < 0) {
+                        $qtyLost = abs($difference);
+                        $totalLoss = $product->buy_price * $qtyLost;
+
+                        Expense::create([
+                            'name'         => "Penyusutan Stok (Opname)", // Menambah field 'name' agar tidak error
+                            'account_name' => 'Beban Penurunan Nilai Persediaan',
+                            'category'     => 'Kerugian Stok',
+                            'amount'       => $totalLoss,
+                            'description'  => "Otomatis (Opname): Penyusutan {$product->title} sebanyak {$qtyLost} pcs. Alasan: " . ($item['reason'] ?? 'Tidak ada keterangan'),
+                            'date'         => now(),
+                            'user_id'      => auth()->id(),
+                        ]);
+                    }
+
+                    // 2. Update Stok Produk
                     $product->update([
                         'stock' => $stockActual
                     ]);
@@ -105,20 +111,14 @@ class StockOpnameController extends Controller
             }
         });
 
-        return redirect()->route('stock_opnames.index')->with('success', 'Stok produk berhasil diperbarui dan dicatat dalam riwayat!');
+        return redirect()->route('stock_opnames.index')->with('success', 'Stok berhasil disesuaikan dan kerugian otomatis dicatat di keuangan!');
     }
 
-    /**
-     * Export data ke Excel format .xlsx
-     */
     public function export()
     {
         return Excel::download(new StockOpnameExport, 'Format-Opname-'.date('Y-m-d').'.xlsx');
     }
 
-    /**
-     * Import data dari Excel
-     */
     public function import(Request $request)
     {
         $request->validate([
@@ -127,12 +127,9 @@ class StockOpnameController extends Controller
 
         Excel::import(new StockOpnameImport, $request->file('file'));
 
-        return redirect()->route('stock_opnames.index')->with('success', 'Import selesai! Stok telah disesuaikan berdasarkan file Excel.');
+        return redirect()->route('stock_opnames.index')->with('success', 'Import selesai!');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(StockOpname $stock_opname)
     {
         $stock_opname->delete();

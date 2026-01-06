@@ -25,7 +25,10 @@ export default {
                 ],
             },
             colors: {
-                // PRIMARY DIUBAH KE ROSE/PINK (Sesuai Gambar Referensi)
+                // WARNA COSMIC UTAMA (Aksen Ungu dari tengah gradasi)
+                "cosmic-main": "#ba83ca",
+
+                // PRIMARY ROSE/PINK
                 primary: {
                     50: "#fff1f2",
                     100: "#ffe4e6",
@@ -39,7 +42,7 @@ export default {
                     900: "#881337",
                     950: "#4c0519",
                 },
-                // SLATE DIUBAH KE DARK ELEGANT (Background Sesuai Gambar)
+                // SLATE DARK ELEGANT
                 slate: {
                     50: "#f8fafc",
                     100: "#f1f5f9",
@@ -53,7 +56,6 @@ export default {
                     900: "#0f172a", // Sidebar / Card Background
                     950: "#020617", // Dasar Background Web
                 },
-                // Warna tambahan lainnya tetap dipertahankan
                 accent: {
                     50: "#ecfeff",
                     100: "#cffafe",
@@ -107,6 +109,10 @@ export default {
                     950: "#4c0519",
                 },
             },
+            // --- GRADASI COSMIC GLOBAL ---
+            backgroundImage: {
+                'cosmic': 'linear-gradient(to right top, #d16ba5, #c777b9, #ba83ca, #aa8fd8, #9a9ae1, #8aa7ec, #79b3f4, #69bff8, #52cffe, #41dfff, #46eefa, #5ffbf1)',
+            },
             spacing: {
                 18: "4.5rem",
                 88: "22rem",
@@ -126,9 +132,9 @@ export default {
                 "4xl": "2rem",
             },
             boxShadow: {
-                // GLOW DISESUAIKAN KE WARNA ROSE (Primary)
                 glow: "0 0 20px rgba(244, 63, 94, 0.3)",
                 "glow-lg": "0 0 40px rgba(244, 63, 94, 0.4)",
+                "glow-cosmic": "0 0 25px rgba(186, 131, 202, 0.4)", // Shadow glow warna ungu gradasi
                 "inner-lg": "inset 0 4px 6px -1px rgb(0 0 0 / 0.1)",
             },
             animation: {

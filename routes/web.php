@@ -28,7 +28,7 @@ use Inertia\Inertia;
 // RUTE PUBLIK
 // =============================================================
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
+    return Inertia::render('Auth/Login', [
         'canLogin'       => Route::has('login'),
         'canRegister'    => Route::has('register'),
         'laravelVersion' => Application::VERSION,
@@ -113,11 +113,8 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::post('/stock-in', [StockInController::class, 'store'])->name('stock_in.store');
         
         // --- FITUR EXPORT & IMPORT EXCEL (STOCK IN) ---
-        // Route export template berisi semua data produk untuk bulk update
         Route::get('/stock-in-template', [StockInController::class, 'exportTemplate'])->name('stock_in.template');
-        // Route export history transaksi stock in
         Route::get('/stock-in-export', [StockInController::class, 'export'])->name('stock_in.export');
-        // Route parse excel untuk memuat data ke tabel frontend
         Route::post('/stock-in-parse', [StockInController::class, 'parseExcel'])->name('stock_in.parse_excel');
 
         // Stock Opname
@@ -142,9 +139,14 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::get('/reports/products', [ProductReportController::class, 'index'])->name('reports.products.index');
         Route::get('/reports/products/export', [ProductReportController::class, 'export'])->name('reports.products.export');
         Route::get('/reports/shifts', [ShiftController::class, 'index'])->name('reports.shifts.index');
+        
+        // --- FITUR EXPIRED PRODUCTS ---
         Route::get('/reports/expired', [ExpiredProductController::class, 'index'])->name('reports.expired.index');
         Route::get('/reports/expired/pdf', [ExpiredProductController::class, 'exportPdf'])->name('reports.expired.pdf');
         Route::get('/reports/expired/excel', [ExpiredProductController::class, 'exportExcel'])->name('reports.expired.excel');
+        
+        // [FITUR BARU] Rute Bersihkan Stok Expired Otomatis Keuangan
+        Route::delete('/reports/expired/{id}/destroy-stock', [ExpiredProductController::class, 'destroyStock'])->name('reports.expired.destroy_stock');
 
         // Laporan Keuangan (Akuntansi)
         Route::get('/report/finance', [ReportController::class, 'finance'])->name('report.finance');

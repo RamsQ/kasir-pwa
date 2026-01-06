@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Apps;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\Expense; 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB; 
 use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ExpiredProductsExport;
@@ -18,7 +20,6 @@ class ExpiredProductController extends Controller
      */
     public function index(Request $request)
     {
-        // Default filter: Hari ini sampai 30 hari ke depan
         $startDate = $request->start_date ?? Carbon::now()->format('Y-m-d');
         $endDate   = $request->end_date   ?? Carbon::now()->addDays(30)->format('Y-m-d');
 
@@ -38,11 +39,42 @@ class ExpiredProductController extends Controller
     }
 
     /**
-     * Export ke PDF
+     * Menghapus stok expired dan otomatis mencatat ke Keuangan
      */
+    public function destroyStock(Request $request, $id)
+    {
+        $product = Product::findOrFail($id);
+
+        if ($product->stock <= 0) {
+            return back()->with('error', 'Stok produk ini sudah kosong.');
+        }
+
+        DB::transaction(function () use ($product) {
+            $qtyExpired = $product->stock;
+            $totalLoss  = $product->buy_price * $qtyExpired;
+
+            // 1. Catat Otomatis ke Keuangan
+            Expense::create([
+                'name'         => "Penyusutan Stok (Expired)", // Menambah field 'name' agar tidak error
+                'account_name' => 'Beban Penurunan Nilai Persediaan',
+                'category'     => 'Kerugian Stok',
+                'amount'       => $totalLoss,
+                'description'  => "Otomatis (Expired): Penghapusan stok {$product->title} sebanyak {$qtyExpired} pcs.",
+                'date'         => now(),
+                'user_id'      => auth()->id(),
+            ]);
+
+            // 2. Nolkan Stok Produk
+            $product->update([
+                'stock' => 0
+            ]);
+        });
+
+        return back()->with('success', 'Stok expired berhasil dihapus dan dicatat sebagai kerugian di keuangan.');
+    }
+
     public function exportPdf(Request $request)
     {
-        // Gunakan default tanggal jika request kosong untuk mencegah error Undefined
         $startDate = $request->start_date ?? Carbon::now()->format('Y-m-d');
         $endDate   = $request->end_date   ?? Carbon::now()->addDays(30)->format('Y-m-d');
 
@@ -50,21 +82,14 @@ class ExpiredProductController extends Controller
             ->orderBy('expired_date', 'asc')
             ->get();
 
-        // Load view blade dengan data yang diperlukan
         $pdf = Pdf::loadView('exports.expired_pdf', compact('products', 'startDate', 'endDate'));
-        
-        // Atur ukuran kertas ke A4 Portrait
         $pdf->setPaper('a4', 'portrait');
 
         return $pdf->download("laporan-expired-{$startDate}-to-{$endDate}.pdf");
     }
 
-    /**
-     * Export ke Excel
-     */
     public function exportExcel(Request $request)
     {
-        // Gunakan default tanggal jika request kosong
         $startDate = $request->start_date ?? Carbon::now()->format('Y-m-d');
         $endDate   = $request->end_date   ?? Carbon::now()->addDays(30)->format('Y-m-d');
 

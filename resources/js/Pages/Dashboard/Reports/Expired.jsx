@@ -10,8 +10,10 @@ import {
     IconSearch,
     IconFileTypePdf,
     IconFileTypeXls,
-    IconFilter
+    IconFilter,
+    IconTrash
 } from "@tabler/icons-react";
+import Swal from "sweetalert2";
 
 export default function Expired({ products, filter }) {
     // State untuk filter tanggal
@@ -25,6 +27,26 @@ export default function Expired({ products, filter }) {
             start_date: startDate, 
             end_date: endDate 
         }, { preserveState: true });
+    };
+
+    // [FITUR BARU] Fungsi untuk menghapus stok expired & catat kerugian ke keuangan
+    const handleDestroyStock = (id, title) => {
+        Swal.fire({
+            title: 'Hapus Stok Expired?',
+            text: `Seluruh stok ${title} akan dinolkan dan dicatat sebagai beban kerugian di laporan keuangan.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Ya, Bersihkan Stok!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                router.delete(route('reports.expired.destroy_stock', id), {
+                    onSuccess: () => Swal.fire('Berhasil', 'Stok dibersihkan dan kerugian dicatat.', 'success'),
+                });
+            }
+        });
     };
 
     return (
@@ -42,7 +64,7 @@ export default function Expired({ products, filter }) {
                             Kontrol Produk Expired
                         </h1>
                         <p className="text-sm text-slate-500 font-medium uppercase tracking-wider flex items-center gap-2">
-                            <IconClockStop size={14} /> Monitoring Batas Kadaluarsa
+                            <IconClockStop size={14} /> Monitoring & Pembersihan Stok Kadaluarsa
                         </p>
                     </div>
                 </div>
@@ -108,11 +130,11 @@ export default function Expired({ products, filter }) {
                                 <th className="px-6 py-5 text-center">Stok Tersisa</th>
                                 <th className="px-6 py-5">Tanggal Expired</th>
                                 <th className="px-8 py-5">Status & Sisa Waktu</th>
+                                <th className="px-8 py-5 text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                             {products.length > 0 ? products.map((product) => {
-                                // Logika sisa hari dari Accessor Model
                                 const days = product.days_until_expired;
                                 const isExpired = days <= 0;
                                 
@@ -162,10 +184,8 @@ export default function Expired({ products, filter }) {
                                                             <IconCalendarTime size={16} />
                                                             <span className="text-[11px] font-black uppercase whitespace-nowrap">Sisa {days} Hari</span>
                                                         </div>
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{Math.min(100, Math.round((days/30)*100))}% Aman</span>
                                                     </div>
-                                                    {/* Progress Bar Visual */}
-                                                    <div className="w-48 bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                                    <div className="w-40 bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
                                                         <div 
                                                             className={`h-full transition-all duration-500 rounded-full ${days <= 7 ? 'bg-red-500' : 'bg-amber-500'}`} 
                                                             style={{ width: `${Math.min(100, (days / 30) * 100)}%` }}
@@ -174,11 +194,25 @@ export default function Expired({ products, filter }) {
                                                 </div>
                                             )}
                                         </td>
+                                        <td className="px-8 py-5 text-center">
+                                            {isExpired && product.stock > 0 && (
+                                                <button 
+                                                    onClick={() => handleDestroyStock(product.id, product.title)}
+                                                    className="p-2.5 bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-xl transition-all border border-red-100 hover:border-red-500 group shadow-sm active:scale-95"
+                                                    title="Bersihkan Stok"
+                                                >
+                                                    <IconTrash size={18} />
+                                                </button>
+                                            )}
+                                            {product.stock <= 0 && (
+                                                <span className="text-[10px] font-bold text-slate-300 uppercase italic">Sudah Dibersihkan</span>
+                                            )}
+                                        </td>
                                     </tr>
                                 );
                             }) : (
                                 <tr>
-                                    <td colSpan="4" className="py-24 text-center">
+                                    <td colSpan="5" className="py-24 text-center">
                                         <div className="flex flex-col items-center opacity-20">
                                             <IconCheckupList size={64} className="text-slate-400" />
                                             <p className="mt-4 text-sm font-black uppercase tracking-[0.3em] text-slate-500">Data Tidak Ditemukan</p>
