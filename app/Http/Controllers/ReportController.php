@@ -26,15 +26,18 @@ class ReportController extends Controller
             ->whereDate('created_at', '<=', $end)
             ->sum('grand_total');
 
-        // 3. HITUNG HPP (MODAL BARANG) - VERSI FIX 
-        // Menggunakan SUM dari (buy_price * qty) yang tersimpan di transaction_details
-        $totalHpp = DB::table('transaction_details')
-            ->join('transactions', 'transactions.id', '=', 'transaction_details.transaction_id')
+        // 3. HITUNG LABA KOTOR (GROSS PROFIT) - SINKRONISASI TOTAL
+        // Mengambil data langsung dari tabel profits agar sama dengan laporan produk
+        $grossProfit = DB::table('profits')
+            ->join('transactions', 'transactions.id', '=', 'profits.transaction_id')
             ->where('transactions.payment_status', 'paid')
             ->whereDate('transactions.created_at', '>=', $start)
             ->whereDate('transactions.created_at', '<=', $end)
-            ->select(DB::raw('SUM(transaction_details.buy_price * transaction_details.qty) as real_hpp'))
-            ->first()->real_hpp ?? 0;
+            ->sum('profits.total');
+
+        // Hitung HPP (Modal) berdasarkan selisih Omzet dan Laba Kotor
+        // Menggunakan round() untuk menghindari selisih 1 perak akibat floating point
+        $totalHpp = (float)$revenue - (float)$grossProfit;
 
         // 4. AMBIL LIST PENGELUARAN (Expenses) & FILTER SUMBER DANA
         $expensesQuery = Expense::with('user:id,name')
@@ -72,13 +75,11 @@ class ReportController extends Controller
         }
 
         // 6. LOGIKA NERACA (BALANCE SHEET)
-        // A. Nilai Persediaan (Estimasi: Stok Master x Harga Beli Master)
         $inventoryValue = DB::table('products')
             ->where('type', 'single')
             ->select(DB::raw('SUM(stock * buy_price) as total_value'))
             ->first()->total_value ?? 0;
 
-        // B. Top 10 Barang dengan Nilai Aset Terbesar
         $topAssets = DB::table('products')
             ->where('type', 'single')
             ->where('stock', '>', 0)
@@ -87,11 +88,9 @@ class ReportController extends Controller
             ->limit(10)
             ->get();
 
-        // C. Modal Luar (External Capital)
         $rawExternalCapital = DB::table('capitals')->sum('amount') ?? 0;
         $currentExternalCapital = $rawExternalCapital - $expenseFromCapital;
 
-        // D. Saldo Kasir (Estimasi Kas Laci)
         $totalInitialCash = DB::table('shifts')
             ->whereDate('opened_at', '>=', $start)
             ->whereDate('opened_at', '<=', $end)
@@ -99,37 +98,37 @@ class ReportController extends Controller
         
         $cashInDrawer = ($totalInitialCash + $revenue) - $expenseFromCash;
 
-        // E. Sisa Hutang Dagang
         $historyTotalDebt = DB::table('expenses')->where('source', 'Hutang Dagang')->sum('amount');
         $historyTotalRepayment = DB::table('expenses')->where('category', 'Pelunasan Hutang')->sum('amount');
         $remainingDebt = $historyTotalDebt - $historyTotalRepayment;
 
         // 7. KALKULASI FINAL LABA RUGI
-        $grossProfit = (float)$revenue - (float)$totalHpp;
-        $netProfit   = $grossProfit - (float)$operationalExpenses; 
-        $staffList   = User::select('id', 'name')->orderBy('name')->get();
+        // Net Profit = Gross Profit - Operasional
+        $netProfit = (float)$grossProfit - (float)$operationalExpenses; 
+        
+        $staffList = User::select('id', 'name')->orderBy('name')->get();
 
         return Inertia::render('Dashboard/Reports/Finance', [
             'report' => [
-                'revenue'            => (int)$revenue,
-                'hpp'                => (int)$totalHpp,
-                'grossProfit'        => (int)$grossProfit,
-                'expenses'           => (int)$operationalExpenses,
-                'expenseFromCash'    => (int)$expenseFromCash,
-                'expenseFromCapital' => (int)$expenseFromCapital,
-                'expenseFromDebt'    => (int)$expenseFromDebt,
-                'debtRepayment'      => (int)$totalDebtRepayment,
-                'netProfit'          => (int)$netProfit,
+                'revenue'            => (int)round($revenue),
+                'hpp'                => (int)round($totalHpp),
+                'grossProfit'        => (int)round($grossProfit),
+                'expenses'           => (int)round($operationalExpenses),
+                'expenseFromCash'    => (int)round($expenseFromCash),
+                'expenseFromCapital' => (int)round($expenseFromCapital),
+                'expenseFromDebt'    => (int)round($expenseFromDebt),
+                'debtRepayment'      => (int)round($totalDebtRepayment),
+                'netProfit'          => (int)round($netProfit),
                 'expenseList'        => $expenses,
                 'chartData'          => $chartData,
                 'topAssets'          => $topAssets,
                 'balanceSheet' => [
-                    'cash_in_drawer'   => (int)$cashInDrawer,
-                    'external_capital' => (int)$currentExternalCapital,
-                    'inventory_value'  => (int)$inventoryValue,
-                    'accounts_payable' => (int)$remainingDebt,
-                    'total_assets'     => (int)($cashInDrawer + $currentExternalCapital + $inventoryValue),
-                    'retained_earnings'=> (int)$netProfit,
+                    'cash_in_drawer'   => (int)round($cashInDrawer),
+                    'external_capital' => (int)round($currentExternalCapital),
+                    'inventory_value'  => (int)round($inventoryValue),
+                    'accounts_payable' => (int)round($remainingDebt),
+                    'total_assets'     => (int)round($cashInDrawer + $currentExternalCapital + $inventoryValue),
+                    'retained_earnings'=> (int)round($netProfit),
                 ],
                 'staffList'          => $staffList,
                 'filter' => [

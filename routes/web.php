@@ -15,7 +15,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ShiftController; 
 use App\Http\Controllers\Apps\StockOpnameController;
-use App\Http\Controllers\Apps\StockInController; // Import StockInController Baru
+use App\Http\Controllers\Apps\StockInController; 
 use App\Http\Controllers\Apps\ExpiredProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ExpenseController;
@@ -46,10 +46,14 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     // [0] DASHBOARD UTAMA
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-    // [0.1] SHIFT KASIR
+    // [0.1] SHIFT KASIR (FIXED)
     Route::group(['middleware' => ['permission:transactions-access']], function () {
         Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index'); 
         Route::post('/shifts', [ShiftController::class, 'store'])->name('shifts.store');
+        
+        // --- RUTE TUTUP SHIFT (INI YANG TADI KURANG) ---
+        Route::post('/shifts/close', [ShiftController::class, 'close'])->name('shifts.close');
+        
         Route::put('/shifts/{shift}', [ShiftController::class, 'update'])->name('shifts.update');
         Route::get('/shifts/{shift}/print', [ShiftController::class, 'print'])->name('shifts.print');
     });
@@ -60,13 +64,13 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::resource('/roles', RoleController::class)->except(['create', 'edit', 'show']);
         Route::resource('/users', UserController::class)->except('show');
 
-        // Settings (Global App & COGS Method)
+        // Settings
         Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
         Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
 
         // Settings Gateway & Receipt
         Route::get('/settings/payments', [PaymentSettingController::class, 'edit'])->name('settings.payments.edit');
-        Route::put('/settings/payments', [PaymentSettingController::class, 'update'])->name('settings.payments.update');
+        Route::put('/settings/payments', [PaymentSetting::class, 'update'])->name('settings.payments.update');
         Route::get('/settings/receipt', [\App\Http\Controllers\Apps\ReceiptSettingController::class, 'index'])->name('settings.receipt.index');
         Route::post('/settings/receipt', [\App\Http\Controllers\Apps\ReceiptSettingController::class, 'update'])->name('settings.receipt.update');
 
@@ -84,10 +88,11 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::post('/transactions/store', [TransactionController::class, 'store'])->name('transactions.store');
         Route::get('/transactions/history', [TransactionController::class, 'history'])->name('transactions.history');
         
-        // --- FITUR KAS KELUAR (BARU) ---
+        // --- FITUR KAS KELUAR ---
         Route::post('/transactions/expense', [TransactionController::class, 'storeExpense'])->name('transactions.expense');
 
         // --- FITUR HOLD TRANSACTION ---
+        Route::post('/transactions/hold', [TransactionController::class, 'holdCart'])->name('transactions.hold'); // Perbaikan Name agar sync dengan Index.jsx
         Route::post('/holds', [TransactionController::class, 'holdCart'])->name('holds.store');
         Route::post('/holds/{holdId}/resume', [TransactionController::class, 'resumeCart'])->name('transactions.resume');
         Route::get('/holds/history', [TransactionController::class, 'holdHistory'])->name('holds.history');
@@ -108,11 +113,11 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::post('/products/import', [ProductController::class, 'import'])->name('products.import');
         Route::resource('products', ProductController::class);
 
-        // --- FITUR STOCK IN (PENDAFTARAN MODAL FIFO/AVERAGE) ---
+        // --- STOCK IN ---
         Route::get('/stock-in', [StockInController::class, 'index'])->name('stock_in.index');
         Route::post('/stock-in', [StockInController::class, 'store'])->name('stock_in.store');
         
-        // --- FITUR EXPORT & IMPORT EXCEL (STOCK IN) ---
+        // --- STOCK IN EXPORT/IMPORT ---
         Route::get('/stock-in-template', [StockInController::class, 'exportTemplate'])->name('stock_in.template');
         Route::get('/stock-in-export', [StockInController::class, 'export'])->name('stock_in.export');
         Route::post('/stock-in-parse', [StockInController::class, 'parseExcel'])->name('stock_in.parse_excel');
@@ -140,22 +145,20 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::get('/reports/products/export', [ProductReportController::class, 'export'])->name('reports.products.export');
         Route::get('/reports/shifts', [ShiftController::class, 'index'])->name('reports.shifts.index');
         
-        // --- FITUR EXPIRED PRODUCTS ---
+        // --- EXPIRED PRODUCTS ---
         Route::get('/reports/expired', [ExpiredProductController::class, 'index'])->name('reports.expired.index');
         Route::get('/reports/expired/pdf', [ExpiredProductController::class, 'exportPdf'])->name('reports.expired.pdf');
         Route::get('/reports/expired/excel', [ExpiredProductController::class, 'exportExcel'])->name('reports.expired.excel');
-        
-        // [FITUR BARU] Rute Bersihkan Stok Expired Otomatis Keuangan
         Route::delete('/reports/expired/{id}/destroy-stock', [ExpiredProductController::class, 'destroyStock'])->name('reports.expired.destroy_stock');
 
-        // Laporan Keuangan (Akuntansi)
+        // Laporan Keuangan
         Route::get('/report/finance', [ReportController::class, 'finance'])->name('report.finance');
     });
 
-    // [5] EXPENSES (PENGELUARAN UMUM/BESAR)
+    // [5] EXPENSES
     Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
 
-    // [6] USER PROFILE & LAINNYA
+    // [6] PROFILE & BULK ACTIONS
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

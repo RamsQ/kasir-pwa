@@ -10,11 +10,22 @@ class CogsService
 {
     /**
      * Menghitung total HPP berdasarkan metode yang dipilih
+     * method: FIFO, LIFO, AVERAGE, SPECIFIC
      */
     public function calculate($productId, $qtySold, $method, $scannedSerial = null)
     {
         $totalHpp = 0;
         $remainingToReduce = $qtySold;
+
+        // 1. Validasi Produk
+        $productMaster = Product::find($productId);
+        if (!$productMaster) {
+            return 0;
+        }
+
+        // 2. Ambil Harga Beli Default dari Master Produk (Cadangan jika batch kosong)
+        // [FIX] Pastikan nilai adalah float/angka, bukan string
+        $defaultCost = (float) ($productMaster->buy_price ?? 0);
 
         switch ($method) {
             case 'FIFO':
@@ -30,9 +41,9 @@ class CogsService
                     if ($remainingToReduce <= 0) break;
 
                     $take = min($batch->qty_remaining, $remainingToReduce);
-                    $totalHpp += $take * $batch->buy_price;
+                    // [FIX] Casting buy_price ke float untuk akurasi perhitungan
+                    $totalHpp += $take * (float) $batch->buy_price;
 
-                    // Kurangi sisa stok di batch tersebut
                     $batch->decrement('qty_remaining', $take);
                     $remainingToReduce -= $take;
                 }
@@ -41,21 +52,19 @@ class CogsService
             case 'SPECIFIC':
                 $batch = StockBatch::where('product_id', $productId)
                             ->where('serial_number', $scannedSerial)
+                            ->where('qty_remaining', '>', 0)
                             ->first();
 
                 if ($batch) {
-                    $totalHpp = $qtySold * $batch->buy_price;
-                    $batch->decrement('qty_remaining', $qtySold);
-                    $remainingToReduce -= $qtySold;
-                } else {
-                    $product = Product::find($productId);
-                    $totalHpp = $qtySold * $product->buy_price;
-                    $remainingToReduce -= $qtySold;
+                    $take = min($batch->qty_remaining, $remainingToReduce);
+                    $totalHpp = $take * (float) $batch->buy_price;
+                    $batch->decrement('qty_remaining', $take);
+                    $remainingToReduce -= $take;
                 }
                 break;
 
             case 'AVERAGE':
-                // HITUNG RATA-RATA DARI SEMUA BATCH YANG TERSEDIA
+                // [FIX] Hitung rata-rata tertimbang berdasarkan Stock Batch yang tersedia
                 $batchData = StockBatch::where('product_id', $productId)
                                 ->where('qty_remaining', '>', 0)
                                 ->select(
@@ -63,16 +72,16 @@ class CogsService
                                     DB::raw('SUM(qty_remaining) as total_qty')
                                 )->first();
 
+                // Jika ada data di batch, gunakan rata-rata batch. Jika tidak, gunakan harga master.
                 if ($batchData && $batchData->total_qty > 0) {
-                    $averagePrice = $batchData->total_value / $batchData->total_qty;
-                    $totalHpp = $qtySold * $averagePrice;
+                    $averagePrice = (float) ($batchData->total_value / $batchData->total_qty);
                 } else {
-                    // Fallback ke harga produk jika tidak ada batch
-                    $product = Product::find($productId);
-                    $totalHpp = $qtySold * ($product->buy_price ?? 0);
+                    $averagePrice = $defaultCost;
                 }
 
-                // Tetap kurangi qty di batch (FIFO style) agar stok fisik berkurang
+                $totalHpp = $qtySold * $averagePrice;
+
+                // [FIX] Tetap kurangi fisik batch menggunakan logic FIFO agar data batch sinkron dengan stok global
                 $batchesToReduce = StockBatch::where('product_id', $productId)
                                     ->where('qty_remaining', '>', 0)
                                     ->orderBy('created_at', 'asc')
@@ -85,16 +94,21 @@ class CogsService
                     $remainingToReduce -= $take;
                 }
                 break;
-
-            default:
-                $product = Product::find($productId);
-                $totalHpp = $qtySold * ($product->buy_price ?? 0);
-                break;
         }
 
-        // Update stok utama di tabel products agar selalu sinkron
-        Product::where('id', $productId)->decrement('stock', $qtySold);
+        // 3. Fallback: Jika stok di batch tidak cukup, sisa qty diambil dari stok Master
+        // [FIX] Sangat penting agar profit tidak 0 saat batch kosong tapi Master memiliki buy_price
+        if ($remainingToReduce > 0) {
+            $totalHpp += (float) ($remainingToReduce * $defaultCost);
+        }
 
-        return $totalHpp;
+        // 4. Sinkronisasi Stok Global
+        // [WARNING] Pastikan di Controller Anda tidak melakukan decrement stok lagi 
+        // agar tidak terjadi pengurangan ganda (double decrement)
+        if ($productMaster) {
+            $productMaster->decrement('stock', $qtySold);
+        }
+
+        return (float) $totalHpp;
     }
 }

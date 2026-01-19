@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Head, Link } from "@inertiajs/react";
 import { 
     IconArrowLeft, IconPrinter, IconCash, IconPackage, 
@@ -9,7 +9,19 @@ import {
 import Swal from "sweetalert2";
 import ThermalReceipt, { ThermalReceipt58mm } from "@/Components/Receipt/ThermalReceipt";
 
-export default function Print({ transaction, receiptSetting, isPublic = false, qrisImage = null }) {
+export default function Print({ transaction, receiptSetting, isPublic = false, qrisImage = null, autoPrint = false }) {
+    
+    // --- LOGIKA CETAK OTOMATIS ---
+    useEffect(() => {
+        if (autoPrint && transaction?.invoice) {
+            // Berikan jeda agar browser selesai merender elemen sebelum dialog print muncul
+            const timer = setTimeout(() => {
+                window.print();
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [autoPrint, transaction]);
+
     // 1. Guard Utama
     if (!transaction || !transaction.invoice) {
         return <div className="p-10 text-center text-white bg-slate-900 min-h-screen">Memuat Transaksi...</div>;
@@ -237,6 +249,16 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
                     </div>
                 </div>
             </div>
+
+            <style>{`
+                @media print {
+                    .print-content {
+                        width: 100%;
+                        margin: 0;
+                        padding: 0;
+                    }
+                }
+            `}</style>
         </>
     );
 }
