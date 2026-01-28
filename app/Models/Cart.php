@@ -23,6 +23,7 @@ class Cart extends Model
         'hold_label', 
         'held_at',
         'product_unit_id', // Tambahkan ini agar bisa menyimpan pilihan satuan
+        'table_id',
     ];
 
     /**

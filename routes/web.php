@@ -20,6 +20,7 @@ use App\Http\Controllers\Apps\ExpiredProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\Apps\SettingController; 
+use App\Http\Controllers\Apps\TableController; // [BARU] Import Controller Meja
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -61,29 +62,20 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::resource('/roles', RoleController::class)->except(['create', 'edit', 'show']);
         Route::resource('/users', UserController::class)->except('show');
 
-        // Settings Umum
+        // Settings Umum & Printer
         Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
         Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
-
-        // Settings Gateway & Receipt
         Route::get('/settings/payments', [PaymentSettingController::class, 'edit'])->name('settings.payments.edit');
         Route::put('/settings/payments', [PaymentSettingController::class, 'update'])->name('settings.payments.update');
         Route::get('/settings/receipt', [\App\Http\Controllers\Apps\ReceiptSettingController::class, 'index'])->name('settings.receipt.index');
         Route::post('/settings/receipt', [\App\Http\Controllers\Apps\ReceiptSettingController::class, 'update'])->name('settings.receipt.update');
-
-        /**
-         * PRINTER BLUETOOTH PAIRING
-         * Ditambahkan untuk integrasi PWA Bluetooth Printer
-         */
-        Route::get('/settings/bluetooth', function () {
-            return Inertia::render('Dashboard/Settings/BluetoothPairing');
-        })->name('settings.bluetooth');
+        Route::get('/settings/bluetooth', fn() => Inertia::render('Dashboard/Settings/BluetoothPairing'))->name('settings.bluetooth');
 
         // Discounts
         Route::resource('/discounts', \App\Http\Controllers\Apps\DiscountController::class)->except(['show', 'edit', 'update']);
     });
 
-    // [2] TRANSAKSI & POS
+    // [2] TRANSAKSI & POS (OPERASIONAL KASIR)
     Route::group(['middleware' => ['permission:transactions-access']], function () {
         Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
         Route::post('/transactions/searchProduct', [TransactionController::class, 'searchProduct'])->name('transactions.searchProduct');
@@ -96,12 +88,12 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         // Fitur Kas Keluar
         Route::post('/transactions/expense', [TransactionController::class, 'storeExpense'])->name('transactions.expense');
 
-        // Fitur Hold Transaction
+        // --- OPERASIONAL MEJA & ANTREAN (KASIR HANYA PAKAI TEMPLATE MEJA) ---
         Route::post('/transactions/hold', [TransactionController::class, 'holdCart'])->name('transactions.hold');
-        Route::post('/holds', [TransactionController::class, 'holdCart'])->name('holds.store');
-        Route::post('/holds/{holdId}/resume', [TransactionController::class, 'resumeCart'])->name('transactions.resume');
-        Route::get('/holds/history', [TransactionController::class, 'holdHistory'])->name('holds.history');
-        Route::delete('/holds/{id}', [TransactionController::class, 'clearHold'])->name('holds.destroy');
+        Route::post('/transactions/resume/{holdId}', [TransactionController::class, 'resumeCart'])->name('transactions.resume');
+        Route::post('/transactions/move-table/{holdId}', [TransactionController::class, 'moveTable'])->name('transactions.move_table');
+        Route::post('/transactions/merge-table', [TransactionController::class, 'mergeTable'])->name('transactions.merge_table');
+        Route::delete('/holds/{id}', [TransactionController::class, 'destroyHold'])->name('holds.destroy');
 
         Route::get('/transactions/{invoice}/print', [TransactionController::class, 'print'])->name('transactions.print');
         Route::post('/transactions/{transaction}/refund', [TransactionController::class, 'refund'])->name('transactions.refund');
@@ -111,21 +103,23 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
             ->name('transactions.reset');
     });
 
-    // [3] MASTER DATA & INVENTORY
+    // [3] MASTER DATA & INVENTORY (TEMPAT CREATE MEJA OLEH ADMIN)
     Route::group(['middleware' => ['permission:products-access']], function () {
+        // --- MASTER MEJA (CRUD TEMPLATE MEJA) ---
+        Route::resource('/tables', TableController::class)->except(['create', 'edit', 'show']);
+        
         Route::resource('categories', CategoryController::class)->middleware('permission:categories-access');
         Route::get('/products/template', [ProductController::class, 'template'])->name('products.template');
         Route::post('/products/import', [ProductController::class, 'import'])->name('products.import');
         Route::resource('products', ProductController::class);
 
-        // Stock In
+        // Stock In & Opname
         Route::get('/stock-in', [StockInController::class, 'index'])->name('stock_in.index');
         Route::post('/stock-in', [StockInController::class, 'store'])->name('stock_in.store');
         Route::get('/stock-in-template', [StockInController::class, 'exportTemplate'])->name('stock_in.template');
         Route::get('/stock-in-export', [StockInController::class, 'export'])->name('stock_in.export');
         Route::post('/stock-in-parse', [StockInController::class, 'parseExcel'])->name('stock_in.parse_excel');
 
-        // Stock Opname
         Route::group(['middleware' => ['permission:stock_opnames.index']], function () {
             Route::get('/stock-opnames', [StockOpnameController::class, 'index'])->name('stock_opnames.index');
             Route::post('/stock-opnames', [StockOpnameController::class, 'store'])->name('stock_opnames.store');
@@ -147,14 +141,10 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::get('/reports/products', [ProductReportController::class, 'index'])->name('reports.products.index');
         Route::get('/reports/products/export', [ProductReportController::class, 'export'])->name('reports.products.export');
         Route::get('/reports/shifts', [ShiftController::class, 'index'])->name('reports.shifts.index');
-        
-        // Expired Products
         Route::get('/reports/expired', [ExpiredProductController::class, 'index'])->name('reports.expired.index');
         Route::get('/reports/expired/pdf', [ExpiredProductController::class, 'exportPdf'])->name('reports.expired.pdf');
         Route::get('/reports/expired/excel', [ExpiredProductController::class, 'exportExcel'])->name('reports.expired.excel');
         Route::delete('/reports/expired/{id}/destroy-stock', [ExpiredProductController::class, 'destroyStock'])->name('reports.expired.destroy_stock');
-
-        // Laporan Keuangan
         Route::get('/report/finance', [ReportController::class, 'finance'])->name('report.finance');
     });
 

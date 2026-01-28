@@ -4,11 +4,11 @@ import {
     IconArrowLeft, IconPrinter, IconCash, IconPackage, 
     IconBuildingStore, IconReceipt, IconHash, IconCalendar, IconUser,
     IconFileInvoice, IconUsers, IconBrandWhatsapp, IconExternalLink, IconScale,
-    IconBoxSeam, IconBluetooth
+    IconBoxSeam, IconBluetooth, IconTicket
 } from "@tabler/icons-react";
 import Swal from "sweetalert2";
 import ThermalReceipt, { ThermalReceipt58mm } from "@/Components/Receipt/ThermalReceipt";
-import { printBluetooth } from "@/Utils/BluetoothPrinter"; // Import utilitas bluetooth
+import { printBluetooth } from "@/Utils/BluetoothPrinter";
 
 export default function Print({ transaction, receiptSetting, isPublic = false, qrisImage = null, autoPrint = false }) {
     
@@ -24,7 +24,7 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
 
     // 1. Guard Utama
     if (!transaction || !transaction.invoice) {
-        return <div className="p-10 text-center text-white bg-slate-900 min-h-screen">Memuat Transaksi...</div>;
+        return <div className="p-10 text-center text-white bg-slate-900 min-h-screen font-black uppercase italic tracking-widest">Memuat Transaksi...</div>;
     }
 
     const [printMode, setPrintMode] = useState("invoice");
@@ -71,8 +71,8 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
         
         if (!phone) {
             Swal.fire({
-                title: 'Nomor HP Tidak Ditemukan',
-                text: "Masukkan nomor HP pelanggan secara manual:",
+                title: 'Nomor HP Pelanggan',
+                text: "Masukkan nomor HP secara manual:",
                 input: 'number',
                 showCancelButton: true,
                 confirmButtonText: 'Kirim WA',
@@ -132,7 +132,6 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
                                 <IconBrandWhatsapp size={18} /> KIRIM WA
                             </button>
                             
-                            {/* Tombol Cetak Bluetooth - Hanya muncul jika bukan publik */}
                             <button onClick={handleBluetoothPrint} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl shadow-lg active:scale-95 text-[10px] uppercase tracking-widest transition-all">
                                 <IconBluetooth size={18} /> BLUETOOTH
                             </button>
@@ -148,11 +147,11 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
                     <div className={`print-content bg-white ${isPublic ? '' : 'rounded-[2.5rem] shadow-2xl'} overflow-hidden print:shadow-none print:rounded-none`}>
                         
                         {printMode === "invoice" ? (
-                            <div className="p-6 md:p-12 text-slate-800 bg-white min-h-[1000px] flex flex-col transition-colors">
-                                {/* Header Struk A4 */}
+                            <div className="p-6 md:p-12 text-slate-800 bg-white min-h-[1000px] flex flex-col transition-colors relative">
+                                {/* Header Invoice A4 */}
                                 <div className="flex justify-between items-start mb-12">
                                     <div className="flex gap-4 items-start">
-                                        {storeLogo ? <img src={storeLogo} className="w-20 h-20 object-contain" /> : <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400"><IconBuildingStore size={32} /></div>}
+                                        {storeLogo ? <img src={storeLogo} className="w-20 h-20 object-contain" alt="store-logo" /> : <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400"><IconBuildingStore size={32} /></div>}
                                         <div>
                                             <h1 className="text-2xl font-black uppercase tracking-tighter text-slate-900 leading-none">{storeName}</h1>
                                             <p className="text-[11px] text-slate-500 max-w-xs mt-2 leading-relaxed font-medium uppercase tracking-wide">{storeAddress}</p>
@@ -160,7 +159,17 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
                                     </div>
                                     <div className="text-right">
                                         <h2 className="text-5xl font-black text-emerald-500/10 print:text-emerald-500/20 leading-none mb-2 tracking-tighter uppercase">Invoice</h2>
-                                        <span className="bg-emerald-600 text-white px-3 py-1 rounded-lg text-xs font-bold font-mono shadow-sm">#{transaction.invoice}</span>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <span className="bg-emerald-600 text-white px-3 py-1 rounded-lg text-xs font-bold font-mono shadow-sm">#{transaction.invoice}</span>
+                                            
+                                            {/* NOMOR ANTREAN DI INVOICE A4 */}
+                                            {transaction.queue_number && (
+                                                <div className="flex items-center gap-1 text-slate-900 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 mt-1">
+                                                    <IconTicket size={14} className="text-primary-600" />
+                                                    <span className="text-sm font-black italic tracking-tight">#{transaction.queue_number}</span>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -168,8 +177,8 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12 border-y border-slate-100 py-6">
                                     <div><p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1 tracking-widest"><IconUsers size={12}/> Pelanggan</p><p className="text-sm font-bold text-slate-900 uppercase">{transaction.customer?.name || "UMUM"}</p></div>
                                     <div><p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1 tracking-widest"><IconUser size={12}/> Kasir</p><p className="text-sm font-bold text-slate-700 uppercase">{transaction.cashier?.name}</p></div>
-                                    <div><p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1 tracking-widest"><IconCalendar size={12}/> Waktu</p><p className="text-sm font-bold text-slate-700">{new Date(transaction.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p></div>
-                                    <div><p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1 tracking-widest"><IconHash size={12}/> Metode</p><p className="text-sm font-bold text-emerald-600 font-black italic">{transaction.payment_method?.toUpperCase()}</p></div>
+                                    <div><p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1 tracking-widest"><IconCalendar size={12}/> Waktu</p><p className="text-sm font-bold text-slate-700">{new Date(transaction.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p></div>
+                                    <div><p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1 tracking-widest"><IconHash size={12}/> Meja/Status</p><p className="text-sm font-bold text-emerald-600 font-black italic uppercase">{transaction.table_name || "Bawa Pulang"}</p></div>
                                 </div>
 
                                 {/* Table Items */}
@@ -186,10 +195,7 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
                                         <tbody className="divide-y divide-slate-100">
                                             {details.map((item, i) => {
                                                 const unitPrice = item.price / item.qty;
-                                                const originalPrice = item.product?.sell_price || unitPrice;
-                                                const isDiscounted = originalPrice > unitPrice;
                                                 const currentUnit = item.unit || item.product_unit?.unit_name || "Pcs";
-
                                                 return (
                                                     <tr key={i} className="align-top">
                                                         <td className="py-5">
@@ -198,17 +204,14 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
                                                                 {item.product?.type === 'bundle' && <IconBoxSeam size={14} className="text-purple-500" />}
                                                             </p>
                                                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter bg-slate-50 px-2 py-0.5 rounded border border-slate-100 inline-block">
-                                                                Satuan: {String(currentUnit)}
+                                                                Unit: {currentUnit}
                                                             </span>
                                                         </td>
                                                         <td className="py-5 text-right text-sm">
-                                                            <div className="flex flex-col items-end">
-                                                                <span className="font-bold text-slate-700">{formatPrice(unitPrice)}</span>
-                                                                {isDiscounted && <span className="text-[10px] text-slate-400 line-through">{formatPrice(originalPrice)}</span>}
-                                                            </div>
+                                                            <span className="font-bold text-slate-700">{formatPrice(unitPrice)}</span>
                                                         </td>
                                                         <td className="py-5 text-center text-sm font-black text-slate-900">
-                                                            {item.qty} <span className="text-[10px] text-slate-400 font-bold uppercase ml-0.5">{String(currentUnit)}</span>
+                                                            {item.qty} <span className="text-[10px] text-slate-400 font-bold uppercase ml-0.5">{currentUnit}</span>
                                                         </td>
                                                         <td className="py-5 text-right text-sm font-black text-slate-900">{formatPrice(item.price)}</td>
                                                     </tr>
@@ -222,11 +225,15 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
                                 <div className="mt-12 flex justify-end">
                                     <div className="w-full md:w-80 bg-slate-900 p-6 rounded-[2rem] shadow-xl text-white">
                                         <div className="flex justify-between items-center pt-4 border-t border-white/10">
-                                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total Bayar</span>
+                                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Grand Total</span>
                                             <span className="text-2xl font-black text-emerald-400">{formatPrice(transaction.grand_total)}</span>
                                         </div>
-                                        <div className="mt-4 flex justify-between items-center text-slate-400">
-                                            <span className="text-[9px] font-bold uppercase">Cash</span>
+                                        <div className="mt-4 flex justify-between items-center text-slate-400 border-t border-white/5 pt-4">
+                                            <span className="text-[9px] font-bold uppercase">Metode</span>
+                                            <span className="text-xs font-bold uppercase italic">{transaction.payment_method}</span>
+                                        </div>
+                                        <div className="mt-1 flex justify-between items-center text-slate-400">
+                                            <span className="text-[9px] font-bold uppercase">Bayar</span>
                                             <span className="text-xs font-bold">{formatPrice(transaction.cash || transaction.grand_total)}</span>
                                         </div>
                                         <div className="mt-1 flex justify-between items-center text-slate-400">
@@ -241,28 +248,28 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
                                     <p className="text-xs text-slate-400 italic font-medium">"{storeFooter}"</p>
                                 </div>
                             </div>
-                        ) : printMode === "thermal80" ? (
-                            <div className="bg-white p-4 flex justify-center min-h-[600px]">
-                                <ThermalReceipt 
-                                    transaction={transaction} 
-                                    storeName={storeName} 
-                                    storeAddress={storeAddress} 
-                                    storePhone={storePhone} 
-                                    footerMessage={storeFooter} 
-                                    storeLogo={storeLogo}
-                                    qrisImage={qrisImage}
-                                />
-                            </div>
                         ) : (
                             <div className="bg-white p-4 flex justify-center min-h-[600px]">
-                                <ThermalReceipt58mm 
-                                    transaction={transaction} 
-                                    storeName={storeName} 
-                                    storePhone={storePhone} 
-                                    footerMessage={storeFooter} 
-                                    storeLogo={storeLogo}
-                                    qrisImage={qrisImage}
-                                />
+                                {printMode === "thermal80" ? (
+                                    <ThermalReceipt 
+                                        transaction={transaction} 
+                                        storeName={storeName} 
+                                        storeAddress={storeAddress} 
+                                        storePhone={storePhone} 
+                                        footerMessage={storeFooter} 
+                                        storeLogo={storeLogo}
+                                        qrisImage={qrisImage}
+                                    />
+                                ) : (
+                                    <ThermalReceipt58mm 
+                                        transaction={transaction} 
+                                        storeName={storeName} 
+                                        storePhone={storePhone} 
+                                        footerMessage={storeFooter} 
+                                        storeLogo={storeLogo}
+                                        qrisImage={qrisImage}
+                                    />
+                                )}
                             </div>
                         )}
                     </div>
@@ -273,8 +280,15 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
                 @media print {
                     .print-content {
                         width: 100%;
-                        margin: 0;
-                        padding: 0;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                    }
+                    body {
+                        background: white !important;
+                    }
+                    .print-content > div {
+                        box-shadow: none !important;
+                        border-radius: 0 !important;
                     }
                 }
             `}</style>

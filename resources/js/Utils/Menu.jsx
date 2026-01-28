@@ -24,7 +24,8 @@ import {
     IconClockHour6,
     IconCirclePlus,
     IconCreditCard,
-    IconBluetooth, // Import icon bluetooth
+    IconBluetooth,
+    IconArmchair, // Icon untuk Meja
 } from "@tabler/icons-react";
 import hasAnyPermission from "./Permission";
 import React from "react";
@@ -64,6 +65,13 @@ export default function Menu() {
                     active: url === "/dashboard/products" ? true : false,
                     icon: <IconBox size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["products-access"]),
+                },
+                {
+                    title: "Master Meja", // [BARU] Menu Manajemen Meja untuk Admin
+                    href: route("tables.index"),
+                    active: url === "/dashboard/tables" ? true : false,
+                    icon: <IconArmchair size={20} strokeWidth={1.5} className="text-orange-500" />,
+                    permissions: hasAnyPermission(["dashboard-access"]), 
                 },
                 {
                     title: "Pelanggan",

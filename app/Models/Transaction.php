@@ -27,6 +27,8 @@ class Transaction extends Model
         'grand_total',
         'payment_method',
         'payment_status',
+        'table_name',
+        'queue_number',
         'payment_reference',
         'payment_url',
     ];
