@@ -24,6 +24,7 @@ import {
     IconClockHour6,
     IconCirclePlus,
     IconCreditCard,
+    IconBluetooth, // Import icon bluetooth
 } from "@tabler/icons-react";
 import hasAnyPermission from "./Permission";
 import React from "react";
@@ -80,7 +81,7 @@ export default function Menu() {
                 },
             ],
         },
-        // [2] INVENTORY INTELLIGENCE (DIPINDAHKAN KE SINI)
+        // [2] INVENTORY INTELLIGENCE
         {
             title: "Inventory Intelligence",
             details: [
@@ -235,6 +236,13 @@ export default function Menu() {
                     href: route("settings.receipt.index"),
                     active: url === "/dashboard/settings/receipt",
                     icon: <IconReceipt size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["dashboard-access"]),
+                },
+                {
+                    title: "Printer Bluetooth",
+                    href: route("settings.bluetooth"),
+                    active: url === "/dashboard/settings/bluetooth",
+                    icon: <IconBluetooth size={20} strokeWidth={1.5} className="text-emerald-500" />,
                     permissions: hasAnyPermission(["dashboard-access"]),
                 },
             ],

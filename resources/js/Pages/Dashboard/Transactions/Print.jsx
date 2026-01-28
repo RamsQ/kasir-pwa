@@ -4,17 +4,17 @@ import {
     IconArrowLeft, IconPrinter, IconCash, IconPackage, 
     IconBuildingStore, IconReceipt, IconHash, IconCalendar, IconUser,
     IconFileInvoice, IconUsers, IconBrandWhatsapp, IconExternalLink, IconScale,
-    IconBoxSeam
+    IconBoxSeam, IconBluetooth
 } from "@tabler/icons-react";
 import Swal from "sweetalert2";
 import ThermalReceipt, { ThermalReceipt58mm } from "@/Components/Receipt/ThermalReceipt";
+import { printBluetooth } from "@/Utils/BluetoothPrinter"; // Import utilitas bluetooth
 
 export default function Print({ transaction, receiptSetting, isPublic = false, qrisImage = null, autoPrint = false }) {
     
-    // --- LOGIKA CETAK OTOMATIS ---
+    // --- LOGIKA CETAK OTOMATIS (BROWSER) ---
     useEffect(() => {
         if (autoPrint && transaction?.invoice) {
-            // Berikan jeda agar browser selesai merender elemen sebelum dialog print muncul
             const timer = setTimeout(() => {
                 window.print();
             }, 1000);
@@ -40,6 +40,30 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
         new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(price || 0);
 
     const details = Array.isArray(transaction.details) ? transaction.details : [];
+
+    // --- FUNGSI CETAK BLUETOOTH ---
+    const handleBluetoothPrint = async () => {
+        try {
+            await printBluetooth(transaction, receiptSetting);
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil',
+                text: 'Dokumen sedang dicetak via Bluetooth',
+                timer: 2000,
+                showConfirmButton: false,
+                background: '#0f172a',
+                color: '#fff'
+            });
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Cetak',
+                text: error.message,
+                background: '#0f172a',
+                color: '#fff'
+            });
+        }
+    };
 
     // --- FUNGSI WHATSAPP ---
     const sendWhatsApp = () => {
@@ -86,7 +110,7 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
             <div className={`min-h-screen ${isPublic ? 'bg-white' : 'bg-slate-950'} text-slate-300 p-2 md:p-8 print:bg-white print:p-0`}>
                 
                 {!isPublic && (
-                    <div className="max-w-4xl mx-auto mb-6 flex flex-wrap justify-between items-center gap-4 print:hidden">
+                    <div className="max-w-5xl mx-auto mb-6 flex flex-wrap justify-between items-center gap-4 print:hidden">
                         <Link href={route("transactions.index")} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors bg-slate-900 px-4 py-2 rounded-xl border border-slate-800 shadow-lg font-bold text-xs uppercase tracking-widest">
                             <IconArrowLeft size={18} /> Kembali
                         </Link>
@@ -104,11 +128,17 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
                         </div>
 
                         <div className="flex gap-2">
-                            <button onClick={sendWhatsApp} className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-xl shadow-lg active:scale-95 text-xs uppercase tracking-widest">
-                                <IconBrandWhatsapp size={20} /> KIRIM WA
+                            <button onClick={sendWhatsApp} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-xl shadow-lg active:scale-95 text-[10px] uppercase tracking-widest transition-all">
+                                <IconBrandWhatsapp size={18} /> KIRIM WA
                             </button>
-                            <button onClick={() => window.print()} className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-black rounded-xl shadow-lg active:scale-95 text-xs uppercase tracking-widest">
-                                <IconPrinter size={20} /> CETAK
+                            
+                            {/* Tombol Cetak Bluetooth - Hanya muncul jika bukan publik */}
+                            <button onClick={handleBluetoothPrint} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl shadow-lg active:scale-95 text-[10px] uppercase tracking-widest transition-all">
+                                <IconBluetooth size={18} /> BLUETOOTH
+                            </button>
+
+                            <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-black rounded-xl shadow-lg active:scale-95 text-[10px] uppercase tracking-widest transition-all">
+                                <IconPrinter size={18} /> CETAK BROWSER
                             </button>
                         </div>
                     </div>
@@ -119,7 +149,7 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
                         
                         {printMode === "invoice" ? (
                             <div className="p-6 md:p-12 text-slate-800 bg-white min-h-[1000px] flex flex-col transition-colors">
-                                {/* Header */}
+                                {/* Header Struk A4 */}
                                 <div className="flex justify-between items-start mb-12">
                                     <div className="flex gap-4 items-start">
                                         {storeLogo ? <img src={storeLogo} className="w-20 h-20 object-contain" /> : <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400"><IconBuildingStore size={32} /></div>}
@@ -142,7 +172,7 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
                                     <div><p className="text-[9px] font-black text-slate-400 uppercase mb-1 flex items-center gap-1 tracking-widest"><IconHash size={12}/> Metode</p><p className="text-sm font-bold text-emerald-600 font-black italic">{transaction.payment_method?.toUpperCase()}</p></div>
                                 </div>
 
-                                {/* Table */}
+                                {/* Table Items */}
                                 <div className="flex-1">
                                     <table className="w-full text-slate-800">
                                         <thead>
@@ -170,17 +200,6 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
                                                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter bg-slate-50 px-2 py-0.5 rounded border border-slate-100 inline-block">
                                                                 Satuan: {String(currentUnit)}
                                                             </span>
-                                                            {item.product?.type === 'bundle' && item.product?.bundle_items?.length > 0 && (
-                                                                <div className="mt-2 ml-4 border-l-2 border-slate-200 pl-3 space-y-1">
-                                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Isi Paket:</p>
-                                                                    {item.product.bundle_items.map((bundle, bIdx) => (
-                                                                        <div key={bIdx} className="text-[10px] text-slate-500 flex justify-between italic max-w-[250px]">
-                                                                            <span>• {bundle.title}</span>
-                                                                            <span className="font-bold">x{parseFloat(bundle.pivot?.qty || 0) * parseFloat(item.qty)}</span>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            )}
                                                         </td>
                                                         <td className="py-5 text-right text-sm">
                                                             <div className="flex flex-col items-end">
@@ -199,7 +218,7 @@ export default function Print({ transaction, receiptSetting, isPublic = false, q
                                     </table>
                                 </div>
 
-                                {/* Footer Total */}
+                                {/* Summary */}
                                 <div className="mt-12 flex justify-end">
                                     <div className="w-full md:w-80 bg-slate-900 p-6 rounded-[2rem] shadow-xl text-white">
                                         <div className="flex justify-between items-center pt-4 border-t border-white/10">

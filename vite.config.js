@@ -13,39 +13,44 @@ export default defineConfig({
         VitePWA({
             registerType: 'autoUpdate',
             injectRegister: 'auto',
+            // Pastikan build menyertakan aset manifest ke folder public
+            includeAssets: ['favicon.ico', 'robots.txt', 'assets/icon/*.svg'],
             devOptions: {
                 enabled: true,
                 type: 'module'
             },
             workbox: {
-                // 1. Matikan navigateFallback agar tidak mencari /index.php di aset statis
+                // 1. Matikan navigateFallback agar tidak bentrok dengan routing Laravel/Inertia
                 navigateFallback: null,
                 
-                // 2. Tentukan aset statis yang akan di-cache (pre-caching)
-                globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+                // 2. Tingkatkan limit ukuran file yang bisa di-cache (penting untuk app kasir)
+                maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
+
+                // 3. Tentukan aset statis yang akan di-cache
+                globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
                 
-                // 3. Gunakan Runtime Caching untuk menangani navigasi halaman Laravel
+                // 4. Runtime Caching
                 runtimeCaching: [
                     {
-                        // Menangani navigasi halaman (HTML/Inertia responses)
                         urlPattern: ({ request }) => request.mode === 'navigate',
-                        handler: 'NetworkFirst', // Coba jaringan dulu, jika gagal gunakan cache
+                        handler: 'NetworkFirst',
                         options: {
                             cacheName: 'pages-cache',
-                            networkTimeoutSeconds: 3, // Tunggu jaringan selama 3 detik sebelum fallback ke cache
+                            networkTimeoutSeconds: 3,
                             expiration: {
                                 maxEntries: 50,
+                                maxAgeSeconds: 24 * 60 * 60 // 1 hari
                             },
                         },
                     },
                     {
-                        // Menangani aset gambar atau eksternal lainnya
-                        urlPattern: /\.(?:png|jpg|jpeg|svg|gif)$/,
+                        // Cache aset gambar secara agresif
+                        urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/,
                         handler: 'CacheFirst',
                         options: {
                             cacheName: 'image-cache',
                             expiration: {
-                                maxEntries: 60,
+                                maxEntries: 100,
                                 maxAgeSeconds: 30 * 24 * 60 * 60, // 30 hari
                             },
                         },
@@ -59,6 +64,7 @@ export default defineConfig({
                 theme_color: '#4B5563',
                 background_color: '#f8fafc',
                 display: 'standalone',
+                orientation: 'any', // Memungkinkan rotasi layar di HP/Tablet
                 scope: '/',
                 start_url: '/',
                 icons: [
@@ -84,5 +90,7 @@ export default defineConfig({
     ],
     build: {
         chunkSizeWarningLimit: 1600,
+        // Pastikan output build bersih
+        emptyOutDir: true,
     },
 });

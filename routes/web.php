@@ -46,33 +46,38 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     // [0] DASHBOARD UTAMA
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-    // [0.1] SHIFT KASIR (FIXED)
+    // [0.1] SHIFT KASIR
     Route::group(['middleware' => ['permission:transactions-access']], function () {
         Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index'); 
         Route::post('/shifts', [ShiftController::class, 'store'])->name('shifts.store');
-        
-        // --- RUTE TUTUP SHIFT (INI YANG TADI KURANG) ---
         Route::post('/shifts/close', [ShiftController::class, 'close'])->name('shifts.close');
-        
         Route::put('/shifts/{shift}', [ShiftController::class, 'update'])->name('shifts.update');
         Route::get('/shifts/{shift}/print', [ShiftController::class, 'print'])->name('shifts.print');
     });
 
-    // [1] KHUSUS ADMIN/OWNER
+    // [1] KHUSUS ADMIN/OWNER (PENGATURAN SISTEM)
     Route::group(['middleware' => ['permission:dashboard-access']], function () {
         Route::get('/permissions', [PermissionController::class, 'index'])->name('permissions.index');
         Route::resource('/roles', RoleController::class)->except(['create', 'edit', 'show']);
         Route::resource('/users', UserController::class)->except('show');
 
-        // Settings
+        // Settings Umum
         Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
         Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
 
         // Settings Gateway & Receipt
         Route::get('/settings/payments', [PaymentSettingController::class, 'edit'])->name('settings.payments.edit');
-        Route::put('/settings/payments', [PaymentSetting::class, 'update'])->name('settings.payments.update');
+        Route::put('/settings/payments', [PaymentSettingController::class, 'update'])->name('settings.payments.update');
         Route::get('/settings/receipt', [\App\Http\Controllers\Apps\ReceiptSettingController::class, 'index'])->name('settings.receipt.index');
         Route::post('/settings/receipt', [\App\Http\Controllers\Apps\ReceiptSettingController::class, 'update'])->name('settings.receipt.update');
+
+        /**
+         * PRINTER BLUETOOTH PAIRING
+         * Ditambahkan untuk integrasi PWA Bluetooth Printer
+         */
+        Route::get('/settings/bluetooth', function () {
+            return Inertia::render('Dashboard/Settings/BluetoothPairing');
+        })->name('settings.bluetooth');
 
         // Discounts
         Route::resource('/discounts', \App\Http\Controllers\Apps\DiscountController::class)->except(['show', 'edit', 'update']);
@@ -88,11 +93,11 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::post('/transactions/store', [TransactionController::class, 'store'])->name('transactions.store');
         Route::get('/transactions/history', [TransactionController::class, 'history'])->name('transactions.history');
         
-        // --- FITUR KAS KELUAR ---
+        // Fitur Kas Keluar
         Route::post('/transactions/expense', [TransactionController::class, 'storeExpense'])->name('transactions.expense');
 
-        // --- FITUR HOLD TRANSACTION ---
-        Route::post('/transactions/hold', [TransactionController::class, 'holdCart'])->name('transactions.hold'); // Perbaikan Name agar sync dengan Index.jsx
+        // Fitur Hold Transaction
+        Route::post('/transactions/hold', [TransactionController::class, 'holdCart'])->name('transactions.hold');
         Route::post('/holds', [TransactionController::class, 'holdCart'])->name('holds.store');
         Route::post('/holds/{holdId}/resume', [TransactionController::class, 'resumeCart'])->name('transactions.resume');
         Route::get('/holds/history', [TransactionController::class, 'holdHistory'])->name('holds.history');
@@ -113,11 +118,9 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::post('/products/import', [ProductController::class, 'import'])->name('products.import');
         Route::resource('products', ProductController::class);
 
-        // --- STOCK IN ---
+        // Stock In
         Route::get('/stock-in', [StockInController::class, 'index'])->name('stock_in.index');
         Route::post('/stock-in', [StockInController::class, 'store'])->name('stock_in.store');
-        
-        // --- STOCK IN EXPORT/IMPORT ---
         Route::get('/stock-in-template', [StockInController::class, 'exportTemplate'])->name('stock_in.template');
         Route::get('/stock-in-export', [StockInController::class, 'export'])->name('stock_in.export');
         Route::post('/stock-in-parse', [StockInController::class, 'parseExcel'])->name('stock_in.parse_excel');
@@ -145,7 +148,7 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::get('/reports/products/export', [ProductReportController::class, 'export'])->name('reports.products.export');
         Route::get('/reports/shifts', [ShiftController::class, 'index'])->name('reports.shifts.index');
         
-        // --- EXPIRED PRODUCTS ---
+        // Expired Products
         Route::get('/reports/expired', [ExpiredProductController::class, 'index'])->name('reports.expired.index');
         Route::get('/reports/expired/pdf', [ExpiredProductController::class, 'exportPdf'])->name('reports.expired.pdf');
         Route::get('/reports/expired/excel', [ExpiredProductController::class, 'exportExcel'])->name('reports.expired.excel');
