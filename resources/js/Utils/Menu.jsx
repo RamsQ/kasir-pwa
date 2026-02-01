@@ -25,7 +25,10 @@ import {
     IconCirclePlus,
     IconCreditCard,
     IconBluetooth,
-    IconArmchair, // Icon untuk Meja
+    IconArmchair,
+    IconDatabaseImport, 
+    IconScale,
+    IconToolsKitchen2 // Import Icon Baru untuk Resep
 } from "@tabler/icons-react";
 import hasAnyPermission from "./Permission";
 import React from "react";
@@ -67,7 +70,7 @@ export default function Menu() {
                     permissions: hasAnyPermission(["products-access"]),
                 },
                 {
-                    title: "Master Meja", // [BARU] Menu Manajemen Meja untuk Admin
+                    title: "Master Meja",
                     href: route("tables.index"),
                     active: url === "/dashboard/tables" ? true : false,
                     icon: <IconArmchair size={20} strokeWidth={1.5} className="text-orange-500" />,
@@ -93,6 +96,20 @@ export default function Menu() {
         {
             title: "Inventory Intelligence",
             details: [
+                {
+                    title: "Bahan Baku",
+                    href: route("ingredients.index"),
+                    active: url.startsWith("/dashboard/ingredients"),
+                    icon: <IconDatabaseImport size={20} strokeWidth={1.5} className="text-emerald-500" />,
+                    permissions: hasAnyPermission(["products-access"]),
+                },
+                {
+                    title: "Resep & HPP Menu", // [BARU]
+                    href: route("recipes.index"),
+                    active: url.startsWith("/dashboard/recipes"),
+                    icon: <IconToolsKitchen2 size={20} strokeWidth={1.5} className="text-orange-500" />,
+                    permissions: hasAnyPermission(["products-access"]),
+                },
                 {
                     title: "Stock In",
                     href: route("stock_in.index"),

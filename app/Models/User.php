@@ -28,7 +28,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'avatar', 
+        'avatar',
+        'face_data', 
+        'is_face_mandatory', // TAMBAHKAN INI AGAR BISA DISIMPAN
     ];
 
     /**
@@ -50,7 +52,9 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'password'          => 'hashed',
+            'face_data'         => 'array',
+            'is_face_mandatory' => 'boolean', // TAMBAHKAN INI AGAR PHP MENGENALI STATUS TRUE/FALSE
         ];
     }
 

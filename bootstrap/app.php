@@ -19,6 +19,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // [BARU] Mengecualikan route Face ID dari verifikasi CSRF (Solusi Error 419)
+        $middleware->validateCsrfTokens(except: [
+            '/face-auth/login',
+            '/face-auth/fetch-user',
+        ]);
+
         // Mendaftarkan middleware HandleInertiaRequests ke dalam grup 'web'
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,

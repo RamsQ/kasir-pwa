@@ -23,8 +23,8 @@ class UserController extends Controller
                 $query->where('name', 'like', '%' . request()->search . '%')
                       ->orWhere('email', 'like', '%' . request()->search . '%');
             })
-            // Hanya mengambil kolom yang diperlukan untuk performa
-            ->select('id', 'name', 'avatar', 'email', 'created_at')
+            // Menambahkan 'is_face_mandatory' dan 'face_data' ke select untuk indikator di UI
+            ->select('id', 'name', 'avatar', 'email', 'face_data', 'is_face_mandatory', 'created_at')
             ->latest()
             ->paginate(10)
             ->withQueryString();
@@ -39,7 +39,6 @@ class UserController extends Controller
      */
     public function create()
     {
-        // Pengecekan izin menggunakan Spatie Permission
         if (!auth()->user()->can('users.create')) {
             abort(403, 'Anda tidak memiliki izin untuk menambah pengguna.');
         }
@@ -60,12 +59,13 @@ class UserController extends Controller
         }
 
         $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => bcrypt($request->password),
+            'name'              => $request->name,
+            'email'             => $request->email,
+            'password'          => bcrypt($request->password),
+            // Owner mengatur apakah user wajib menggunakan Face ID
+            'is_face_mandatory' => $request->is_face_mandatory ?? false,
         ]);
 
-        // Assign role yang dipilih dari frontend
         $user->assignRole($request->selectedRoles);
 
         return to_route('users.index')->with('success', 'User berhasil ditambahkan!');
@@ -81,8 +81,6 @@ class UserController extends Controller
         }
 
         $roles = Role::query()->select('id', 'name')->orderBy('name')->get();
-        
-        // Load roles agar checkbox di frontend otomatis tercentang sesuai data DB
         $user->load(['roles']);
 
         return Inertia::render('Dashboard/Users/Edit', [
@@ -101,18 +99,17 @@ class UserController extends Controller
         }
 
         $data = [
-            'name'  => $request->name, 
-            'email' => $request->email
+            'name'              => $request->name, 
+            'email'             => $request->email,
+            // Update status mandatory Face ID dari Owner
+            'is_face_mandatory' => $request->is_face_mandatory ?? false,
         ];
         
-        // Hanya update password jika input password diisi
         if ($request->password) { 
             $data['password'] = bcrypt($request->password); 
         }
 
         $user->update($data);
-
-        // Sinkronisasi role (hapus role lama, ganti dengan yang baru dipilih)
         $user->syncRoles($request->selectedRoles);
 
         return to_route('users.index')->with('success', 'User berhasil diperbarui!');
@@ -120,28 +117,19 @@ class UserController extends Controller
 
     /**
      * Hapus user (Soft Delete).
-     * Mendukung penghapusan tunggal maupun masal (bulk delete).
      */
     public function destroy($id)
     {
-        // Proteksi izin hapus
         if (!auth()->user()->can('users.delete')) {
             return back()->withErrors(['error' => 'Anda tidak memiliki izin untuk menghapus akun!']);
         }
 
-        // Mendukung format ID tunggal "5" atau masal "1,2,3"
         $ids = explode(',', $id);
         
-        // Keamanan: Mencegah user menghapus dirinya sendiri
         if (in_array(auth()->id(), $ids)) {
             return back()->withErrors(['error' => 'Tindakan ditolak! Anda tidak bisa menghapus akun Anda sendiri.']);
         }
 
-        /**
-         * Karena model User sudah menggunakan trait SoftDeletes,
-         * perintah delete() di bawah hanya akan mengisi kolom deleted_at.
-         * Ini menyelesaikan masalah Integrity Constraint Violation pada foreign key.
-         */
         User::whereIn('id', $ids)->delete();
 
         return back()->with('success', 'User berhasil dinonaktifkan!');

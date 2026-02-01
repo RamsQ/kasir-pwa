@@ -16,6 +16,7 @@ class StockOpname extends Model
      */
     protected $fillable = [
         'product_id',
+        'ingredient_id',
         'user_id',
         'stock_system',
         'stock_actual',
@@ -43,5 +44,10 @@ class StockOpname extends Model
     public function user()
     {
         return $this->belongsTo(User::class)->withTrashed();
+    }
+
+    public function ingredient()
+    {
+    return $this->belongsTo(Ingredient::class);
     }
 }

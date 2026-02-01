@@ -10,25 +10,22 @@ import {
     IconPackage,
     IconFileTypeXls,
     IconDownload,
-    IconUpload,
     IconBarcode,
-    IconInbox
+    IconInbox,
+    IconCalculator
 } from "@tabler/icons-react";
 
 export default function Index({ products, search }) {
     const [searchQuery, setSearchQuery] = useState(search || "");
     const [selectedIds, setSelectedIds] = useState([]);
     
-    // Ref untuk input file import
     const fileInputRef = useRef(null);
 
-    // --- 1. SEARCH ---
     const handleSearch = (e) => {
         e.preventDefault();
         router.get(route("products.index"), { search: searchQuery }, { preserveState: true });
     };
 
-    // --- 2. CHECKBOX LOGIC ---
     const handleCheckAll = (e) => {
         if (e.target.checked) {
             const allIds = products.data.map((product) => product.id);
@@ -46,7 +43,6 @@ export default function Index({ products, search }) {
         }
     };
 
-    // --- 3. DELETE LOGIC ---
     const deleteProduct = (id) => {
         if (confirm("Hapus satu produk ini?")) {
             router.delete(route("products.destroy", id));
@@ -62,7 +58,6 @@ export default function Index({ products, search }) {
         }
     };
 
-    // --- 4. IMPORT EXCEL LOGIC ---
     const handleImportClick = () => {
         fileInputRef.current.click(); 
     };
@@ -91,7 +86,6 @@ export default function Index({ products, search }) {
         <>
             <Head title="Manajemen Produk" />
 
-            {/* Input File Tersembunyi untuk Import */}
             <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -135,7 +129,7 @@ export default function Index({ products, search }) {
                         onClick={handleImportClick}
                         className="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-xl shadow-sm transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wide"
                     >
-                        <IconFileTypeXls size={18} />
+                        <IconCalculator size={18} />
                         Import
                     </button>
 
@@ -149,7 +143,6 @@ export default function Index({ products, search }) {
                 </div>
             </div>
 
-            {/* Search Bar */}
             <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 mb-6 shadow-sm">
                 <form onSubmit={handleSearch} className="relative w-full">
                     <IconSearch size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -163,7 +156,6 @@ export default function Index({ products, search }) {
                 </form>
             </div>
 
-            {/* Table */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
@@ -180,83 +172,103 @@ export default function Index({ products, search }) {
                                 <th scope="col" className="px-6 py-4">Produk</th>
                                 <th scope="col" className="px-6 py-4">Informasi Produk</th>
                                 <th scope="col" className="px-6 py-4 text-center">Stok & Satuan</th>
+                                <th scope="col" className="px-6 py-4">Modal (HPP)</th> 
                                 <th scope="col" className="px-6 py-4">Harga Jual</th>
                                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                            {products.data.length > 0 ? products.data.map((product) => (
-                                <tr key={product.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${selectedIds.includes(product.id) ? 'bg-primary-50/50 dark:bg-primary-900/10' : ''}`}>
-                                    <td className="px-4 py-4 text-center">
-                                        <input 
-                                            type="checkbox" 
-                                            className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 cursor-pointer"
-                                            checked={selectedIds.includes(product.id)}
-                                            onChange={() => handleCheckOne(product.id)}
-                                        />
-                                    </td>
-                                    {/* KOLOM GAMBAR PRODUK */}
-                                    <td className="px-6 py-4">
-                                        <div className="w-12 h-12 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm bg-slate-50 dark:bg-slate-800">
-                                            <img 
-                                                src={product.image 
-                                                    ? `/storage/products/${product.image}` 
-                                                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(product.title)}&background=random`} 
-                                                className="w-full h-full object-cover"
-                                                alt={product.title}
-                                                onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(product.title)}&background=random` }}
+                            {products.data.length > 0 ? products.data.map((product) => {
+                                // Logika HPP: Gunakan cost_price (resep) jika ada, jika tidak gunakan buy_price (harga beli)
+                                const finalHpp = product.cost_price > 0 ? product.cost_price : (product.buy_price || 0);
+                                const hppLabel = product.cost_price > 0 ? "HPP (Resep)" : "HPP (Harga Beli)";
+
+                                return (
+                                    <tr key={product.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${selectedIds.includes(product.id) ? 'bg-primary-50/50 dark:bg-primary-900/10' : ''}`}>
+                                        <td className="px-4 py-4 text-center">
+                                            <input 
+                                                type="checkbox" 
+                                                className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 cursor-pointer"
+                                                checked={selectedIds.includes(product.id)}
+                                                onChange={() => handleCheckOne(product.id)}
                                             />
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex flex-col gap-0.5">
-                                            <div className="font-bold text-slate-900 dark:text-white uppercase leading-tight">{product.title}</div>
-                                            <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 dark:text-slate-500">
-                                                <IconBarcode size={12} /> {product.barcode || 'TANPA BARCODE'}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="w-12 h-12 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm bg-slate-50 dark:bg-slate-800">
+                                                <img 
+                                                    src={product.image 
+                                                        ? `/storage/products/${product.image}` 
+                                                        : `https://ui-avatars.com/api/?name=${encodeURIComponent(product.title)}&background=random`} 
+                                                    className="w-full h-full object-cover"
+                                                    alt={product.title}
+                                                    onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(product.title)}&background=random` }}
+                                                />
                                             </div>
-                                            {product.expired_date && (
-                                                <div className="mt-1 text-[10px] font-black uppercase text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-md inline-block w-fit">
-                                                    EXP: {product.expired_date}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col gap-0.5">
+                                                <div className="font-bold text-slate-900 dark:text-white uppercase leading-tight">{product.title}</div>
+                                                <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                                                    <IconBarcode size={12} /> {product.barcode || 'TANPA BARCODE'}
                                                 </div>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <div className="inline-flex flex-col items-center">
-                                            <span className={`text-sm font-black ${product.stock <= 5 ? 'text-red-500 animate-pulse' : 'text-slate-700 dark:text-slate-300'}`}>
-                                                {product.stock}
-                                            </span>
-                                            <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 tracking-tighter">
-                                                {product.unit || 'Pcs'}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-200">
-                                        <span className="text-xs text-slate-400 mr-1">Rp</span>
-                                        {new Intl.NumberFormat("id-ID").format(product.sell_price)}
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <div className="flex justify-center gap-2">
-                                            <Link 
-                                                href={route("products.edit", product.id)} 
-                                                className="p-2 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 rounded-xl hover:bg-yellow-100 transition-all active:scale-90"
-                                                title="Edit Produk"
-                                            >
-                                                <IconPencil size={18} />
-                                            </Link>
-                                            <button 
-                                                onClick={() => deleteProduct(product.id)} 
-                                                className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-100 transition-all active:scale-90"
-                                                title="Hapus Produk"
-                                            >
-                                                <IconTrash size={18} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )) : (
+                                                {product.expired_date && (
+                                                    <div className="mt-1 text-[10px] font-black uppercase text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-md inline-block w-fit">
+                                                        EXP: {product.expired_date}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <div className="inline-flex flex-col items-center">
+                                                <span className={`text-sm font-black ${product.stock <= 5 ? 'text-red-500 animate-pulse' : 'text-slate-700 dark:text-slate-300'}`}>
+                                                    {product.stock}
+                                                </span>
+                                                <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 tracking-tighter">
+                                                    {product.unit || 'Pcs'}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 font-bold text-emerald-600 dark:text-emerald-400 italic">
+                                            <div className="flex flex-col">
+                                                <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase not-italic font-black leading-none mb-1">{hppLabel}</span>
+                                                <div>
+                                                    <span className="text-xs mr-1 uppercase">Rp</span>
+                                                    {new Intl.NumberFormat("id-ID").format(finalHpp)}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-200">
+                                            <div className="flex flex-col">
+                                                <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-black leading-none mb-1">Harga Jual</span>
+                                                <div>
+                                                    <span className="text-xs mr-1">Rp</span>
+                                                    {new Intl.NumberFormat("id-ID").format(product.sell_price)}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <div className="flex justify-center gap-2">
+                                                <Link 
+                                                    href={route("products.edit", product.id)} 
+                                                    className="p-2 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 rounded-xl hover:bg-yellow-100 transition-all active:scale-90"
+                                                    title="Edit Produk"
+                                                >
+                                                    <IconPencil size={18} />
+                                                </Link>
+                                                <button 
+                                                    onClick={() => deleteProduct(product.id)} 
+                                                    className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-100 transition-all active:scale-90"
+                                                    title="Hapus Produk"
+                                                >
+                                                    <IconTrash size={18} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            }) : (
                                 <tr>
-                                    <td colSpan="6" className="p-20 text-center">
+                                    <td colSpan="7" className="p-20 text-center">
                                         <div className="flex flex-col items-center gap-2 opacity-20">
                                             <IconInbox size={64} className="text-slate-400" />
                                             <p className="text-xs font-black uppercase tracking-widest text-slate-500">Produk Tidak Ditemukan</p>

@@ -13,12 +13,13 @@ class ProfileController extends Controller
 {
     /**
      * Menampilkan halaman profil
-     * PERUBAHAN: Path render disesuaikan ke folder 'Profile/Index'
+     * Sesuaikan path render ke 'Profile/Index' sesuai struktur folder React Anda
      */
-    public function edit()
+    public function index()
     {
         return Inertia::render('Profile/Index', [
-            'user' => auth()->user()
+            'user' => auth()->user(),
+            'status' => session('status'),
         ]);
     }
 
@@ -60,7 +61,6 @@ class ProfileController extends Controller
 
         $user->save();
 
-        // Redirect back agar session auth.user di frontend terupdate otomatis
         return redirect()->back()->with('success', 'Profil berhasil diperbarui!');
     }
 
@@ -85,5 +85,26 @@ class ProfileController extends Controller
         $user->save();
 
         return back()->with('success', 'Password berhasil diubah!');
+    }
+
+    /**
+     * BARU: Memperbarui Data Biometrik Wajah (Face ID)
+     * Method ini menerima descriptor wajah dari face-api.js di frontend
+     */
+    public function updateFace(Request $request)
+    {
+        $request->validate([
+            'face_data' => 'required|array',
+        ]);
+
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+        
+        // Simpan array koordinat wajah ke database
+        $user->update([
+            'face_data' => $request->face_data
+        ]);
+
+        return redirect()->back()->with('success', 'Data verifikasi wajah berhasil didaftarkan! Keamanan biometrik kini aktif.');
     }
 }

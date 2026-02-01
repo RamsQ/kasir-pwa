@@ -8,7 +8,7 @@ use App\Http\Controllers\Apps\TransactionController;
 use App\Http\Controllers\Apps\ProductReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PermissionController;
-use App\Http\Controllers\Apps\ProfileController;
+use App\Http\Controllers\Apps\ProfileController; 
 use App\Http\Controllers\Reports\ProfitReportController;
 use App\Http\Controllers\Reports\SalesReportController;
 use App\Http\Controllers\RoleController;
@@ -19,8 +19,15 @@ use App\Http\Controllers\Apps\StockInController;
 use App\Http\Controllers\Apps\ExpiredProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\Apps\ReceiptSettingController;
+use App\Http\Controllers\Apps\DiscountController;
 use App\Http\Controllers\Apps\SettingController; 
-use App\Http\Controllers\Apps\TableController; // [BARU] Import Controller Meja
+use App\Http\Controllers\Apps\TableController;
+use App\Http\Controllers\Auth\FaceAuthController;
+use App\Http\Controllers\Apps\IngredientController;
+use App\Http\Controllers\Apps\UnitController;
+use App\Http\Controllers\Reports\RefundReportController;
+use App\Http\Controllers\Apps\RecipeController; 
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -37,6 +44,8 @@ Route::get('/', function () {
     ]);
 });
 
+Route::post('/face-auth/fetch-user', [FaceAuthController::class, 'fetchUser'])->name('face.fetch');
+Route::post('/face-auth/login', [FaceAuthController::class, 'login'])->name('face.login');
 Route::get('/share/invoice/{invoice}', [TransactionController::class, 'shareInvoice'])->name('transactions.share');
 
 // =============================================================
@@ -47,7 +56,14 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     // [0] DASHBOARD UTAMA
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-    // [0.1] SHIFT KASIR
+    // [0.1] PROFIL & FACE REGISTRATION
+    Route::get('/profile', [ProfileController::class, 'index'])->name('profile.edit');
+    Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
+    Route::post('/profile/face-update', [ProfileController::class, 'updateFace'])->name('profile.face.update');
+    Route::post('/face-registration-alt', [ProfileController::class, 'updateFace'])->name('face.register');
+
+    // [0.2] SHIFT KASIR
     Route::group(['middleware' => ['permission:transactions-access']], function () {
         Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index'); 
         Route::post('/shifts', [ShiftController::class, 'store'])->name('shifts.store');
@@ -67,12 +83,13 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
         Route::get('/settings/payments', [PaymentSettingController::class, 'edit'])->name('settings.payments.edit');
         Route::put('/settings/payments', [PaymentSettingController::class, 'update'])->name('settings.payments.update');
-        Route::get('/settings/receipt', [\App\Http\Controllers\Apps\ReceiptSettingController::class, 'index'])->name('settings.receipt.index');
-        Route::post('/settings/receipt', [\App\Http\Controllers\Apps\ReceiptSettingController::class, 'update'])->name('settings.receipt.update');
+        Route::get('/settings/receipt', [ReceiptSettingController::class, 'index'])->name('settings.receipt.index');
+        Route::post('/settings/receipt', [ReceiptSettingController::class, 'update'])->name('settings.receipt.update');
         Route::get('/settings/bluetooth', fn() => Inertia::render('Dashboard/Settings/BluetoothPairing'))->name('settings.bluetooth');
 
-        // Discounts
-        Route::resource('/discounts', \App\Http\Controllers\Apps\DiscountController::class)->except(['show', 'edit', 'update']);
+        // Discounts & Units
+        Route::resource('/discounts', DiscountController::class)->except(['show', 'edit', 'update']);
+        Route::resource('/units', UnitController::class)->except(['show', 'create', 'edit']);
     });
 
     // [2] TRANSAKSI & POS (OPERASIONAL KASIR)
@@ -84,11 +101,9 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         Route::patch('/transactions/{cart_id}/updateCart', [TransactionController::class, 'updateCart'])->name('transactions.updateCart');
         Route::post('/transactions/store', [TransactionController::class, 'store'])->name('transactions.store');
         Route::get('/transactions/history', [TransactionController::class, 'history'])->name('transactions.history');
-        
-        // Fitur Kas Keluar
         Route::post('/transactions/expense', [TransactionController::class, 'storeExpense'])->name('transactions.expense');
 
-        // --- OPERASIONAL MEJA & ANTREAN (KASIR HANYA PAKAI TEMPLATE MEJA) ---
+        // Meja & Antrean
         Route::post('/transactions/hold', [TransactionController::class, 'holdCart'])->name('transactions.hold');
         Route::post('/transactions/resume/{holdId}', [TransactionController::class, 'resumeCart'])->name('transactions.resume');
         Route::post('/transactions/move-table/{holdId}', [TransactionController::class, 'moveTable'])->name('transactions.move_table');
@@ -103,29 +118,48 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
             ->name('transactions.reset');
     });
 
-    // [3] MASTER DATA & INVENTORY (TEMPAT CREATE MEJA OLEH ADMIN)
+    // [3] MASTER DATA & INVENTORY
     Route::group(['middleware' => ['permission:products-access']], function () {
-        // --- MASTER MEJA (CRUD TEMPLATE MEJA) ---
         Route::resource('/tables', TableController::class)->except(['create', 'edit', 'show']);
-        
         Route::resource('categories', CategoryController::class)->middleware('permission:categories-access');
         Route::get('/products/template', [ProductController::class, 'template'])->name('products.template');
         Route::post('/products/import', [ProductController::class, 'import'])->name('products.import');
         Route::resource('products', ProductController::class);
 
-        // Stock In & Opname
-        Route::get('/stock-in', [StockInController::class, 'index'])->name('stock_in.index');
-        Route::post('/stock-in', [StockInController::class, 'store'])->name('stock_in.store');
-        Route::get('/stock-in-template', [StockInController::class, 'exportTemplate'])->name('stock_in.template');
-        Route::get('/stock-in-export', [StockInController::class, 'export'])->name('stock_in.export');
-        Route::post('/stock-in-parse', [StockInController::class, 'parseExcel'])->name('stock_in.parse_excel');
+        // --- MANAJEMEN BAHAN BAKU ---
+        Route::get('/ingredients/template', [IngredientController::class, 'template'])->name('ingredients.template');
+        Route::post('/ingredients/import', [IngredientController::class, 'import'])->name('ingredients.import');
+        Route::resource('/ingredients', IngredientController::class)->except(['create', 'edit', 'show']);
 
+        // --- MANAJEMEN RESEP (RECIPES) ---
+        Route::get('/recipes/template', [RecipeController::class, 'template'])->name('recipes.template'); 
+        Route::post('/recipes/import', [RecipeController::class, 'import'])->name('recipes.import');     
+        Route::post('/recipes/sync-all', [RecipeController::class, 'syncAll'])->name('recipes.sync_all');
+        Route::get('/recipes', [RecipeController::class, 'index'])->name('recipes.index');
+        Route::post('/recipes', [RecipeController::class, 'store'])->name('recipes.store');
+        // Tambahkan rute DELETE di bawah ini
+        Route::delete('/recipes/{id}', [RecipeController::class, 'destroy'])->name('recipes.destroy');
+
+        // --- MANAJEMEN STOK MASUK (STOCK IN) ---
+        Route::prefix('stock-in')->group(function() {
+            Route::get('/', [StockInController::class, 'index'])->name('stock_in.index');
+            Route::post('/', [StockInController::class, 'store'])->name('stock_in.store');
+            Route::get('/export', [StockInController::class, 'export'])->name('stock_in.export');
+            Route::post('/parse', [StockInController::class, 'parseExcel'])->name('stock_in.parse_excel');
+            Route::get('/template-product', [StockInController::class, 'exportProductTemplate'])->name('stock_in.template_product');
+            Route::get('/template-ingredient', [StockInController::class, 'exportIngredientTemplate'])->name('stock_in.template_ingredient');
+            Route::get('/batch-detail/{id}/{type}', [StockInController::class, 'getBatchDetail'])->name('stock_in.batch_detail');
+        });
+
+        // --- STOCK OPNAME (Audit & Penyesuaian) ---
         Route::group(['middleware' => ['permission:stock_opnames.index']], function () {
             Route::get('/stock-opnames', [StockOpnameController::class, 'index'])->name('stock_opnames.index');
             Route::post('/stock-opnames', [StockOpnameController::class, 'store'])->name('stock_opnames.store');
-            Route::delete('/stock-opnames/{stock_opname}', [StockOpnameController::class, 'destroy'])->name('stock_opnames.destroy');
-            Route::get('/stock-opnames-export', [StockOpnameController::class, 'export'])->name('stock_opnames.export');
             Route::post('/stock-opnames-import', [StockOpnameController::class, 'import'])->name('stock_opnames.import');
+            Route::delete('/stock-opnames/{stock_opname}', [StockOpnameController::class, 'destroy'])->name('stock_opnames.destroy');
+
+            Route::get('/stock-opnames/template-product', [StockOpnameController::class, 'exportProductTemplate'])->name('stock_opnames.template_product');
+            Route::get('/stock-opnames/template-ingredient', [StockOpnameController::class, 'exportIngredientTemplate'])->name('stock_opnames.template_ingredient');
         });
     });
     
@@ -137,8 +171,9 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::group(['middleware' => ['permission:reports-access']], function () {
         Route::get('/reports/sales', [SalesReportController::class, 'index'])->name('reports.sales.index');
         Route::get('/reports/profits', [ProfitReportController::class, 'index'])->middleware('permission:profits-access')->name('reports.profits.index');
-        Route::get('/reports/refund', [\App\Http\Controllers\Reports\RefundReportController::class, 'index'])->name('reports.refund');
+        Route::get('/reports/refund', [RefundReportController::class, 'index'])->name('reports.refund');
         Route::get('/reports/products', [ProductReportController::class, 'index'])->name('reports.products.index');
+        Route::get('/reports/profits/export', [ProfitReportController::class, 'export'])->name('reports.profits.export');
         Route::get('/reports/products/export', [ProductReportController::class, 'export'])->name('reports.products.export');
         Route::get('/reports/shifts', [ShiftController::class, 'index'])->name('reports.shifts.index');
         Route::get('/reports/expired', [ExpiredProductController::class, 'index'])->name('reports.expired.index');
@@ -151,11 +186,8 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     // [5] EXPENSES
     Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
 
-    // [6] PROFILE & BULK ACTIONS
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    Route::post('/products/bulk-destroy', [\App\Http\Controllers\Apps\ProductController::class, 'bulkDestroy'])->name('products.bulk_destroy');
+    // [6] PROSES TAMBAHAN
+    Route::post('/products/bulk-destroy', [ProductController::class, 'bulkDestroy'])->name('products.bulk_destroy');
 
 });
 

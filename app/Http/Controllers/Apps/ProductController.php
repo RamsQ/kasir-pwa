@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\Category;
 use App\Models\ProductUnit;
-use App\Models\StockBatch; // Import Model Batch
+use App\Models\StockBatch; 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
@@ -38,8 +38,6 @@ class ProductController extends Controller
     public function create()
     {
         $categories = Category::all();
-        
-        // Memuat produk single beserta pilihan satuannya untuk UI bundling
         $products = Product::where('type', 'single')->with('units')->get();
 
         return Inertia::render('Dashboard/Products/Create', [
@@ -58,16 +56,15 @@ class ProductController extends Controller
             'buy_price'      => 'required|numeric',
             'sell_price'     => 'required|numeric',
             'type'           => 'required|in:single,bundle',
-            'stock'          => 'nullable|required_if:type,single',
+            // [REPAIR] Stok dibuat nullable agar tidak wajib diisi saat Create
+            'stock'          => 'nullable|numeric|min:0',
             'unit'           => 'required|string|max:20', 
             
-            // Validasi Multi-Satuan
-            'units'              => 'nullable|array',
+            'units'               => 'nullable|array',
             'units.*.unit_name'  => 'required_with:units|string',
             'units.*.conversion' => 'required_with:units|numeric|min:0.01',
             'units.*.sell_price' => 'required_with:units|numeric',
 
-            // Validasi Bundling
             'bundle_items'                  => 'nullable|required_if:type,bundle|array',
             'bundle_items.*.item_id'        => 'required_if:type,bundle', 
             'bundle_items.*.qty'            => 'required_if:type,bundle|numeric|min:0.01',
@@ -82,6 +79,9 @@ class ProductController extends Controller
                 $imageName = $image->hashName();
             }
 
+            // [REPAIR] Pastikan nilai stok default 0 jika input dikosongkan
+            $inputStock = ($request->type === 'bundle' || is_null($request->stock)) ? 0 : $request->stock;
+
             $product = Product::create([
                 'image'        => $imageName,
                 'barcode'      => $request->barcode,
@@ -90,17 +90,17 @@ class ProductController extends Controller
                 'category_id'  => $request->category_id,
                 'buy_price'    => $request->buy_price,
                 'sell_price'   => $request->sell_price,
-                'stock'        => $request->type === 'bundle' ? 0 : $request->stock,
+                'stock'        => $inputStock,
                 'unit'         => $request->unit,
                 'expired_date' => $request->expired_date,
                 'type'         => $request->type,
             ]);
 
-            // --- LOGIKA FIFO/LIFO: Simpan Batch Awal ---
-            if ($request->type === 'single' && $request->stock > 0) {
+            // Simpan Batch Awal hanya jika stok lebih dari 0
+            if ($request->type === 'single' && $inputStock > 0) {
                 $product->stock_batches()->create([
-                    'qty_in'        => $request->stock,
-                    'qty_remaining' => $request->stock,
+                    'qty_in'        => $inputStock,
+                    'qty_remaining' => $inputStock,
                     'buy_price'     => $request->buy_price,
                 ]);
             }
@@ -137,7 +137,6 @@ class ProductController extends Controller
         $categories = Category::all();
         $products = Product::where('type', 'single')->where('id', '!=', $product->id)->with('units')->get();
         
-        // Memuat data Batch yang masih memiliki sisa stok untuk ditampilkan di riwayat batch
         $product->load(['bundle_items.units', 'units', 'stock_batches' => function($query) {
             $query->where('qty_remaining', '>', 0)->orderBy('created_at', 'asc');
         }]);
@@ -158,10 +157,11 @@ class ProductController extends Controller
             'buy_price'    => 'required|numeric',
             'sell_price'   => 'required|numeric',
             'type'         => 'required|in:single,bundle',
-            'stock'        => 'nullable|required_if:type,single',
+            // [REPAIR] Update stok juga nullable
+            'stock'        => 'nullable|numeric|min:0',
             'unit'         => 'required|string|max:20', 
             
-            'units'              => 'nullable|array',
+            'units'               => 'nullable|array',
             'units.*.unit_name'  => 'required_with:units|string',
             'units.*.conversion' => 'required_with:units|numeric|min:0.01',
             'units.*.sell_price' => 'required_with:units|numeric',
@@ -179,16 +179,16 @@ class ProductController extends Controller
                 $product->image = $image->hashName();
             }
 
-            // --- LOGIKA FIFO/LIFO: Deteksi Penambahan Stok ---
             $oldStock = (float) $product->stock;
-            $newStock = $request->type === 'bundle' ? 0 : (float) $request->stock;
+            // [REPAIR] Handle null stock input
+            $newStock = $request->type === 'bundle' ? 0 : (float) ($request->stock ?? 0);
 
             if ($request->type === 'single' && $newStock > $oldStock) {
                 $addedQty = $newStock - $oldStock;
                 $product->stock_batches()->create([
                     'qty_in'        => $addedQty,
                     'qty_remaining' => $addedQty,
-                    'buy_price'     => $request->buy_price, // Batch baru menggunakan harga beli terbaru saat diupdate
+                    'buy_price'     => $request->buy_price, 
                 ]);
             }
 

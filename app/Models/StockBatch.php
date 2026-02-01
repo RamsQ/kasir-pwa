@@ -10,19 +10,22 @@ class StockBatch extends Model
     use HasFactory;
 
     /**
-     * Properti fillable untuk mengizinkan penyimpanan data secara massal.
-     * Pastikan kolom ini sesuai dengan database Anda.
+     * fillable
+     * product_id & ingredient_id sekarang bersifat nullable di DB.
+     * Batch akan terhubung ke salah satu saja tergantung tipe stock-in.
      */
     protected $fillable = [
         'product_id',
-        'qty_in',        // Stok awal masuk
-        'qty_remaining', // Stok yang tersisa setelah dipotong transaksi (Penting untuk COGS)
-        'buy_price',     // Harga modal per kedatangan ini
-        'serial_number', // Nomor Batch / Referensi
+        'ingredient_id', 
+        'qty_in',        
+        'qty_remaining', 
+        'buy_price',     
+        'serial_number', 
     ];
 
     /**
-     * Casting tipe data agar lebih konsisten saat digunakan di Frontend/JS.
+     * casts
+     * Memastikan perhitungan desimal (seperti gram ke kg) tetap presisi.
      */
     protected $casts = [
         'qty_in'        => 'float',
@@ -32,8 +35,10 @@ class StockBatch extends Model
         'updated_at'    => 'datetime',
     ];
 
+    // --- RELATIONSHIPS ---
+
     /**
-     * Relasi Balik ke Model Product.
+     * Relasi ke Produk (Nullable jika ini adalah bahan baku)
      */
     public function product()
     {
@@ -41,8 +46,17 @@ class StockBatch extends Model
     }
 
     /**
-     * Scope untuk mengambil batch yang masih memiliki sisa stok.
-     * Digunakan untuk memotong stok saat penjualan (FIFO/LIFO).
+     * Relasi ke Ingredient (Nullable jika ini adalah produk jadi)
+     */
+    public function ingredient()
+    {
+        return $this->belongsTo(Ingredient::class);
+    }
+
+    // --- QUERY SCOPES ---
+
+    /**
+     * Hanya ambil batch yang stoknya belum habis
      */
     public function scopeAvailable($query)
     {
@@ -50,8 +64,7 @@ class StockBatch extends Model
     }
 
     /**
-     * Scope untuk urutan FIFO (First In First Out)
-     * Batch paling lama akan diambil lebih dulu.
+     * FIFO: Digunakan untuk mengambil stok lama terlebih dahulu
      */
     public function scopeFifo($query)
     {
@@ -59,11 +72,23 @@ class StockBatch extends Model
     }
 
     /**
-     * Scope untuk urutan LIFO (Last In First Out)
-     * Batch paling baru akan diambil lebih dulu.
+     * LIFO: Digunakan untuk mengambil stok terbaru terlebih dahulu
      */
     public function scopeLifo($query)
     {
         return $query->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Helper scope untuk mempermudah filter di Controller
+     */
+    public function scopeForProduct($query, $productId)
+    {
+        return $query->where('product_id', $productId);
+    }
+
+    public function scopeForIngredient($query, $ingredientId)
+    {
+        return $query->where('ingredient_id', $ingredientId);
     }
 }

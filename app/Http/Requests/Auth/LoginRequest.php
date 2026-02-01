@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -21,8 +23,6 @@ class LoginRequest extends FormRequest
 
     /**
      * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\Rule|array|string>
      */
     public function rules(): array
     {
@@ -41,6 +41,35 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
+        // [PROTEKSI BIOMETRIK SMART]
+        // Ambil data langsung dari DB untuk memastikan keakuratan is_face_mandatory DAN face_data
+        $userCheck = DB::table('users')
+            ->where('email', $this->email)
+            ->whereNull('deleted_at')
+            ->select('is_face_mandatory', 'face_data')
+            ->first();
+
+        /**
+         * LOGIKA PERBAIKAN:
+         * Password ditolak HANYA JIKA:
+         * 1. Kolom is_face_mandatory bernilai TRUE (1)
+         * 2. DAN Kolom face_data TIDAK KOSONG (User sudah mendaftarkan wajah)
+         * * Jika face_data kosong, user dibiarkan login pakai password agar bisa daftar wajah dulu.
+         */
+        if ($userCheck) {
+            $isMandatory = (bool) $userCheck->is_face_mandatory;
+            $hasFaceData = !empty($userCheck->face_data);
+
+            if ($isMandatory && $hasFaceData) {
+                RateLimiter::hit($this->throttleKey());
+                
+                throw ValidationException::withMessages([
+                    'email' => 'KEAMANAN AKTIF: Akun ini diwajibkan menggunakan Face ID karena data wajah sudah terdaftar. Login password dinonaktifkan.',
+                ]);
+            }
+        }
+
+        // Jika lolos pengecekan di atas, lanjut verifikasi password
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
@@ -54,8 +83,6 @@ class LoginRequest extends FormRequest
 
     /**
      * Ensure the login request is not rate limited.
-     *
-     * @throws \Illuminate\Validation\ValidationException
      */
     public function ensureIsNotRateLimited(): void
     {

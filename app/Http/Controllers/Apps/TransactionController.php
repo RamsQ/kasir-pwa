@@ -17,7 +17,9 @@ use App\Models\Shift;
 use App\Models\Hold;
 use App\Models\Expense;
 use App\Models\Setting;
-use App\Models\Table; // Import Model Table
+use App\Models\Table;
+use App\Models\Recipe; // Import Model Recipe
+use App\Models\Ingredient; // Import Model Ingredient
 use App\Services\CogsService;
 use App\Services\Payments\PaymentGatewayManager;
 use Illuminate\Http\Request;
@@ -56,10 +58,10 @@ class TransactionController extends Controller
         // 3. Holds (Data Orderan Meja/Antrean)
         $holds = Hold::with('table')->where('user_id', $userId)->latest()->get();
 
-        // 4. Data Meja dari Template Admin
+        // 4. Data Meja
         $tables = Table::orderBy('name')->get();
 
-        // 5. Query Produk dengan Filter stok dan Bundle
+        // 5. Query Produk
         $productsQuery = Product::with(['category:id,name', 'bundle_items', 'units'])
             ->select('id', 'barcode', 'title', 'description', 'image', 'buy_price', 'sell_price', 'stock', 'category_id', 'type', 'unit')
             ->where(function ($query) {
@@ -91,23 +93,23 @@ class TransactionController extends Controller
         }
 
         return Inertia::render('Dashboard/Transactions/Index', [
-            'carts'                 => $carts,
-            'carts_total'           => (int) $carts->sum('price'),
-            'holds'                 => $holds,
-            'tables'                => $tables,
-            'customers'             => Customer::select('id', 'name', 'phone')->latest()->get(),
-            'products'              => $productsQuery->paginate(15)->withQueryString(), 
-            'categories'            => Category::select('id', 'name', 'image')->orderBy('name')->get(),
-            'discounts'             => Discount::active()->with('product:id,title')->get(),
-            'paymentSetting'        => PaymentSetting::first(),
-            'activeShift'           => $activeShift,
-            'receiptSetting'        => ReceiptSetting::first(),
-            'filters'               => $request->all(['search', 'category_id']),
+            'carts'           => $carts,
+            'carts_total'     => (int) $carts->sum('price'),
+            'holds'           => $holds,
+            'tables'          => $tables,
+            'customers'       => Customer::select('id', 'name', 'phone')->latest()->get(),
+            'products'        => $productsQuery->paginate(15)->withQueryString(), 
+            'categories'      => Category::select('id', 'name', 'image')->orderBy('name')->get(),
+            'discounts'       => Discount::active()->with('product:id,title')->get(),
+            'paymentSetting'  => PaymentSetting::first(),
+            'activeShift'     => $activeShift,
+            'receiptSetting'  => ReceiptSetting::first(),
+            'filters'         => $request->all(['search', 'category_id']),
         ]);
     }
 
     /**
-     * Simpan Transaksi Final (Pembayaran Lunas)
+     * Simpan Transaksi Final
      */
     public function store(Request $request, PaymentGatewayManager $paymentGatewayManager)
     {
@@ -127,17 +129,16 @@ class TransactionController extends Controller
         try {
             $transaction = DB::transaction(function () use ($request, $invoice, $cashAmount, $changeAmount, $paymentGateway, $isManualPayment, $activeShift, $cogsMethod) {
                 
-                $cartItems = Cart::with(['product.bundle_items', 'product.units'])->where('cashier_id', auth()->user()->id)->get();
+                $cartItems = Cart::with(['product.bundle_items', 'product.units', 'product.recipes'])->where('cashier_id', auth()->user()->id)->get();
                 if ($cartItems->isEmpty()) { throw new \Exception('Keranjang kosong'); }
 
-                // [FIX] Alur Antrean Otomatis: Cek frontend -> Cek Hold -> Jika kosong (Bayar Langsung) buat baru
+                // Alur Antrean
                 $queueNumber = $request->queue_number;
                 if (!$queueNumber) {
                     if ($request->hold_id) {
                         $backupHold = Hold::find($request->hold_id);
                         $queueNumber = $backupHold ? $backupHold->queue_number : null;
                     }
-                    
                     if (!$queueNumber) {
                         $todayTrxCount = Transaction::whereDate('created_at', now())->count();
                         $todayHoldCount = Hold::whereDate('created_at', now())->count();
@@ -168,6 +169,7 @@ class TransactionController extends Controller
                     $totalItemSellingPrice = $unitPrice * $cart->qty;
                     $totalItemCost = 0;
 
+                    // 1. Kalkulasi HPP (COGS) & Potong Stok Produk/Bundle
                     if ($cart->product->type === 'bundle') {
                         foreach ($cart->product->bundle_items as $item) {
                             $qtyInRecipe = $item->pivot->qty;
@@ -177,6 +179,17 @@ class TransactionController extends Controller
                     } else {
                         $conversionValue = $cart->product_unit_id ? (ProductUnit::find($cart->product_unit_id)->conversion ?? 1) : 1;
                         $totalItemCost = $this->cogsService->calculate($cart->product_id, $cart->qty * $conversionValue, $cogsMethod);
+                    }
+
+                    // 2. [NEW] Logika Potong Stok Bahan Baku Berdasarkan Resep
+                    if ($cart->product->recipes->count() > 0) {
+                        foreach ($cart->product->recipes as $recipe) {
+                            // Hitung total kebutuhan: (Kebutuhan per porsi * Jumlah beli)
+                            $totalReduction = (float)$recipe->qty_needed * (float)$cart->qty;
+                            
+                            // Potong stok di tabel ingredients
+                            Ingredient::where('id', $recipe->ingredient_id)->decrement('stock', $totalReduction);
+                        }
                     }
 
                     $transaction->details()->create([
@@ -220,7 +233,7 @@ class TransactionController extends Controller
     }
 
     /**
-     * Simpan Order (Hold) ke Meja atau Antrean
+     * Simpan Order (Hold)
      */
     public function holdCart(Request $request)
     {
@@ -229,11 +242,10 @@ class TransactionController extends Controller
         if ($request->table_id) {
             $table = Table::find($request->table_id);
             if ($table && $table->status === 'occupied') {
-                return back()->with('error', 'Meja ini sedang digunakan. Silakan pilih meja lain.');
+                return back()->with('error', 'Meja ini sedang digunakan.');
             }
         }
 
-        // [FIX] Buat queue_number saat Save pesanan agar bisa tampil di Cart & Bill Sementara
         $todayTrxCount = Transaction::whereDate('created_at', now())->count();
         $todayHoldCount = Hold::whereDate('created_at', now())->count();
         $queueNumber = 'Q-' . str_pad($todayTrxCount + $todayHoldCount + 1, 3, '0', STR_PAD_LEFT);
@@ -256,13 +268,9 @@ class TransactionController extends Controller
         return back()->with('success', 'Pesanan disimpan.');
     }
 
-    /**
-     * sisanya tetap sama (History, Seach, dsb)
-     */
     public function destroyHold($id)
     {
         $hold = Hold::findOrFail($id);
-
         if ($hold->table_id) {
             Table::where('id', $hold->table_id)->update(['status' => 'available']);
             if (Str::contains($hold->ref_number, '[Merged ')) {
@@ -271,7 +279,6 @@ class TransactionController extends Controller
                 Table::where('name', $mergedTableName)->update(['status' => 'available']);
             }
         }
-
         $hold->delete();
         return back()->with('success', 'Antrean dihapus.');
     }
@@ -279,11 +286,10 @@ class TransactionController extends Controller
     public function moveTable(Request $request, $holdId)
     {
         $request->validate(['new_table_id' => 'required|exists:tables,id']);
-
         $hold = Hold::findOrFail($holdId);
         $oldTableId = $hold->table_id;
-
         $newTable = Table::findOrFail($request->new_table_id);
+
         if ($newTable->status === 'occupied') {
             return back()->with('error', 'Meja tujuan sudah terisi!');
         }
@@ -294,22 +300,16 @@ class TransactionController extends Controller
 
         $hold->update(['table_id' => $request->new_table_id]);
         $newTable->update(['status' => 'occupied']);
-
         return back()->with('success', 'Berhasil pindah meja.');
     }
 
     public function mergeTable(Request $request)
     {
-        $request->validate([
-            'source_hold_id' => 'required',
-            'target_hold_id' => 'required'
-        ]);
-
+        $request->validate(['source_hold_id' => 'required', 'target_hold_id' => 'required']);
         $source = Hold::with('table')->findOrFail($request->source_hold_id);
         $target = Hold::with('table')->findOrFail($request->target_hold_id);
 
         $mergedCart = array_merge($target->cart_data, $source->cart_data);
-        
         $sourceLabel = $source->table ? $source->table->name : $source->ref_number;
         $newLabel = $target->ref_number . " [Merged " . $sourceLabel . "]";
 
@@ -318,9 +318,7 @@ class TransactionController extends Controller
             'total'      => (float)$target->total + (float)$source->total,
             'ref_number' => $newLabel
         ]);
-
         $source->delete();
-
         return back()->with('success', 'Meja berhasil digabungkan.');
     }
 
@@ -338,7 +336,6 @@ class TransactionController extends Controller
                 'price'           => $item['price']
             ]);
         }
-
         return back()->with('success', 'Data pesanan dipulihkan.');
     }
 
@@ -413,7 +410,6 @@ class TransactionController extends Controller
     {
         $request->validate(['name' => 'required|string', 'amount' => 'required|numeric|min:0']);
         $activeShift = Shift::where('user_id', auth()->id())->where('status', 'open')->first();
-        
         if (!$activeShift) return back()->with('error', 'Shift belum dibuka!');
         
         Expense::create([
@@ -424,7 +420,6 @@ class TransactionController extends Controller
             'category' => 'Kas Kecil',
             'note' => 'Shift #' . $activeShift->id,
         ]);
-        
         return back()->with('success', 'Kas keluar dicatat.');
     }
 
@@ -435,7 +430,6 @@ class TransactionController extends Controller
 
         try {
             DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-
             DB::table('transaction_details')->truncate(); 
             DB::table('transactions')->truncate(); 
             DB::table('profits')->truncate();
@@ -443,23 +437,14 @@ class TransactionController extends Controller
             DB::table('shifts')->truncate();
             DB::table('carts')->truncate();
             DB::table('holds')->truncate();
-
-            if (Schema::hasTable('stock_movements')) {
-                DB::table('stock_movements')->truncate();
-            }
+            if (Schema::hasTable('stock_movements')) DB::table('stock_movements')->truncate();
             DB::table('stock_batches')->truncate();
-            if (Schema::hasTable('stock_ins')) {
-                DB::table('stock_ins')->truncate();
-            }
-            if (Schema::hasTable('stock_opnames')) {
-                DB::table('stock_opnames')->truncate();
-            }
+            if (Schema::hasTable('stock_ins')) DB::table('stock_ins')->truncate();
+            if (Schema::hasTable('stock_opnames')) DB::table('stock_opnames')->truncate();
 
             DB::table('products')->update(['stock' => 0]);
             DB::table('tables')->update(['status' => 'available']);
-
             DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-            
             return back()->with('success', 'Sistem berhasil di-reset total.');
         } catch (\Exception $e) {
             DB::statement('SET FOREIGN_KEY_CHECKS=1;');

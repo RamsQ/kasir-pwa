@@ -23,8 +23,23 @@ class CogsService
             return 0;
         }
 
-        // 2. Ambil Harga Beli Default dari Master Produk (Cadangan jika batch kosong)
-        // [FIX] Pastikan nilai adalah float/angka, bukan string
+        /**
+         * [INTEGRASI RESEP]
+         * Jika produk memiliki resep (cost_price > 0), gunakan nilai tersebut sebagai HPP.
+         * Ini biasanya untuk menu makanan/minuman yang diolah dari bahan baku.
+         */
+        if ($productMaster->cost_price > 0) {
+            $totalHpp = (float) ($qtySold * $productMaster->cost_price);
+            
+            // Tetap kurangi stok produk master (produk jadi)
+            if ($productMaster) {
+                $productMaster->decrement('stock', $qtySold);
+            }
+            
+            return (float) $totalHpp;
+        }
+
+        // 2. Ambil Harga Beli Default dari Master Produk (Cadangan jika batch kosong/produk retail)
         $defaultCost = (float) ($productMaster->buy_price ?? 0);
 
         switch ($method) {
@@ -41,7 +56,6 @@ class CogsService
                     if ($remainingToReduce <= 0) break;
 
                     $take = min($batch->qty_remaining, $remainingToReduce);
-                    // [FIX] Casting buy_price ke float untuk akurasi perhitungan
                     $totalHpp += $take * (float) $batch->buy_price;
 
                     $batch->decrement('qty_remaining', $take);
@@ -64,7 +78,7 @@ class CogsService
                 break;
 
             case 'AVERAGE':
-                // [FIX] Hitung rata-rata tertimbang berdasarkan Stock Batch yang tersedia
+                // Hitung rata-rata tertimbang berdasarkan Stock Batch yang tersedia
                 $batchData = StockBatch::where('product_id', $productId)
                                 ->where('qty_remaining', '>', 0)
                                 ->select(
@@ -81,7 +95,7 @@ class CogsService
 
                 $totalHpp = $qtySold * $averagePrice;
 
-                // [FIX] Tetap kurangi fisik batch menggunakan logic FIFO agar data batch sinkron dengan stok global
+                // Tetap kurangi fisik batch menggunakan logic FIFO agar data batch sinkron dengan stok global
                 $batchesToReduce = StockBatch::where('product_id', $productId)
                                     ->where('qty_remaining', '>', 0)
                                     ->orderBy('created_at', 'asc')
@@ -97,14 +111,11 @@ class CogsService
         }
 
         // 3. Fallback: Jika stok di batch tidak cukup, sisa qty diambil dari stok Master
-        // [FIX] Sangat penting agar profit tidak 0 saat batch kosong tapi Master memiliki buy_price
         if ($remainingToReduce > 0) {
             $totalHpp += (float) ($remainingToReduce * $defaultCost);
         }
 
         // 4. Sinkronisasi Stok Global
-        // [WARNING] Pastikan di Controller Anda tidak melakukan decrement stok lagi 
-        // agar tidak terjadi pengurangan ganda (double decrement)
         if ($productMaster) {
             $productMaster->decrement('stock', $qtySold);
         }

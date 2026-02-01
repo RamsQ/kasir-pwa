@@ -20,6 +20,7 @@ class Product extends Model
         'description', 
         'buy_price', 
         'sell_price', 
+        'cost_price', // Field HPP dari resep (untuk produk olahan)
         'category_id', 
         'stock',
         'unit', 
@@ -31,13 +32,37 @@ class Product extends Model
         'expired_date' => 'date',
         'buy_price'    => 'float',
         'sell_price'   => 'float',
+        'cost_price'   => 'float', 
         'stock'        => 'float',
     ];
 
     /**
      * Mendaftarkan atribut virtual agar muncul saat data dipanggil ke Frontend/Inertia
      */
-    protected $appends = ['days_until_expired'];
+    protected $appends = [
+        'days_until_expired',
+        'final_hpp' // Menambahkan atribut HPP Final
+    ];
+
+    /**
+     * Accessor: Mendapatkan Nilai Modal (HPP) Final
+     * Prioritas: 1. cost_price (Resep), 2. buy_price (Input Manual)
+     */
+    protected function finalHpp(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->cost_price > 0 ? $this->cost_price : ($this->buy_price ?? 0)
+        );
+    }
+
+    /**
+     * Relasi ke Recipe (Manajemen Resep & HPP)
+     * Menghubungkan produk dengan komponen bahan bakunya
+     */
+    public function recipes()
+    {
+        return $this->hasMany(Recipe::class);
+    }
 
     /**
      * Accessor: Menghitung sisa hari menjelang expired secara real-time
@@ -51,15 +76,13 @@ class Product extends Model
                 $now = Carbon::now()->startOfDay();
                 $expiry = Carbon::parse($this->expired_date)->startOfDay();
                 
-                // Menggunakan diffInDays untuk mendapatkan sisa hari
                 return (int) $now->diffInDays($expiry, false);
             }
         );
     }
 
     /**
-     * Relasi ke Stock Movements (Penting untuk Fitur Stock In/Out)
-     * Sinkronkan riwayat per kedatangan/pengeluaran barang
+     * Relasi ke Stock Movements (Sinkronisasi riwayat kedatangan/pengeluaran barang)
      */
     public function stock_movements()
     {
@@ -68,7 +91,6 @@ class Product extends Model
 
     /**
      * Relasi ke Stock Batches (Penting untuk FIFO/LIFO)
-     * Jika Anda ingin melacak stok "Batch A harga 1000, Batch B harga 1100"
      */
     public function stock_batches()
     {
@@ -100,6 +122,9 @@ class Product extends Model
         );
     }
 
+    /**
+     * Fitur Bundle / Paket Produk
+     */
     public function bundle_items()
     {
         return $this->belongsToMany(Product::class, 'product_bundles', 'product_id', 'item_id')
@@ -112,11 +137,17 @@ class Product extends Model
         return $this->belongsToMany(Product::class, 'product_bundles', 'item_id', 'product_id');
     }
 
+    /**
+     * Fitur Multi-Satuan (Pcs, Box, Dus, dll)
+     */
     public function units()
     {
         return $this->hasMany(ProductUnit::class);
     }
 
+    /**
+     * Riwayat Audit Stok
+     */
     public function stock_opnames()
     {
         return $this->hasMany(StockOpname::class);

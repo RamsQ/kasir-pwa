@@ -28,6 +28,7 @@
         "@tabler/icons-react": "^3.5.0",
         "chart.js": "^4.5.1",
         "esc-pos-encoder": "^3.0.0",
+        "face-api.js": "^0.22.2",
         "jsbarcode": "^3.11.6",
         "lodash": "^4.17.21",
         "react-hot-toast": "^2.4.1",
